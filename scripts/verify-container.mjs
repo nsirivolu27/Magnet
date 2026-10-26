@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 
 const image = process.argv[2] ?? "magnet:local";
@@ -7,7 +7,8 @@ const name = `magnet-verify-${randomBytes(6).toString("hex")}`;
 const volume = `${name}-data`;
 const key = randomBytes(32).toString("base64url");
 function docker(args, options = {}) {
-  return execFileSync("docker", args, { encoding: "utf8", windowsHide: true, timeout: 120_000, ...options }).trim();
+  const output = execFileSync("docker", args, { encoding: "utf8", windowsHide: true, timeout: 120_000, ...options });
+  return output?.trim() ?? "";
 }
 // Fail rather than skipping if Docker or the requested image is unavailable.
 docker(["image", "inspect", image]);
@@ -67,6 +68,13 @@ try {
   const logs = docker(["logs", name], { stdio: ["ignore", "pipe", "pipe"] });
   assert.equal(logs.includes(key) || logs.includes(link.token), false);
   console.log("PASS: container web/mobile assets, authentication, handoffs, restart persistence and non-root server.");
+} catch (error) {
+  // Print bounded, sanitized startup diagnostics before cleanup removes the container.
+  const diagnostic = spawnSync("docker", ["logs", "--tail", "30", name], { encoding: "utf8", timeout: 10_000, windowsHide: true });
+  const logs = `${diagnostic.stdout ?? ""}${diagnostic.stderr ?? ""}`
+    .replaceAll(key, "[redacted]").replace(/\/share\/[^\s"']+/g, "/share/[redacted]");
+  if (logs) console.error(logs);
+  throw error;
 } finally {
   if (created) {
     try { docker(["rm", "-f", name], { stdio: "ignore" }); }

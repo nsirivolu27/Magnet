@@ -9,6 +9,11 @@ Do not bring back an embedded copy of the relay or MCP server from LLMM history.
 Preserve public tool names, resource URIs, environment variables and auth guards.
 Keep conversation intelligence deterministic and model-free.
 
+Magnet is a simple conversation aggregator for passing context between LLMs,
+people, and devices. Keep its app monochrome: black, white, and neutral grays.
+Do not add purple or magenta accents in future builds. Keep cloud-provider and
+MCP implementation details out of the primary app interface.
+
 Keep commits free of credentials, generated output and attribution trailers.
 Run typecheck, tests and build before committing. Run the web and HTTP smoke
 checks for changes to combined application wiring.

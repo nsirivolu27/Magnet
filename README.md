@@ -2,7 +2,8 @@
 
 **Keep the conversation. Share what matters.**
 
-Magnet brings AI conversations into one place so you can save them, add your own
+Magnet is a conversation aggregator for passing context between LLMs. It brings
+AI conversations into one place so you can save them, add your own
 messages, and pass them to another person or device without losing the context.
 It has a simple black-and-white chat interface for mobile and the web.
 
