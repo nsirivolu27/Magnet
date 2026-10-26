@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SqliteConversationStore } from "../src/lnkz/store/index.js";
-import type { ConversationInput } from "../src/lnkz/types.js";
+import { SqliteConversationStore } from "../src/magnet/store/index.js";
+import type { ConversationInput } from "../src/magnet/types.js";
 
 function memoryStore(): SqliteConversationStore {
   return new SqliteConversationStore(":memory:");

@@ -1,8 +1,9 @@
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   SafeAreaView,
@@ -15,7 +16,7 @@ import {
 } from "react-native";
 
 import {
-  LnkzClient,
+  MagnetClient,
   messageOf,
   normalizeBaseUrl,
   type Analysis,
@@ -34,15 +35,16 @@ import { clearConnection, loadConnection, saveConnection, type StoredConnection 
 
 type Tab = "home" | "library" | "import" | "handoffs" | "settings";
 
-const TABS: { id: Tab; label: string; mark: string }[] = [
-  { id: "home", label: "HOME", mark: "01" },
-  { id: "library", label: "LIBRARY", mark: "02" },
-  { id: "import", label: "IMPORT", mark: "03" },
-  { id: "handoffs", label: "HANDOFFS", mark: "04" },
-  { id: "settings", label: "SETTINGS", mark: "05" },
+const TABS: { id: Tab; label: string }[] = [
+  { id: "home", label: "New conversation" },
+  { id: "library", label: "All conversations" },
+  { id: "import", label: "Import or receive" },
+  { id: "handoffs", label: "Shared links" },
+  { id: "settings", label: "Settings" },
 ];
 
-const DEFAULT_URL = process.env.EXPO_PUBLIC_LNKZ_API_URL
+const DEFAULT_URL = process.env.EXPO_PUBLIC_MAGNET_API_URL
+  ?? process.env.EXPO_PUBLIC_LNKZ_API_URL
   ?? (Platform.OS === "web" && typeof window !== "undefined" ? window.location.origin : "http://localhost:3100");
 
 export default function App() {
@@ -62,7 +64,7 @@ export default function App() {
       <SafeAreaView style={styles.boot}>
         <StatusBar style={dark ? "light" : "dark"} />
         <ActivityIndicator color={colors.accent} />
-        <Text style={styles.mono}>RESTORING YOUR RELAY</Text>
+        <Text style={styles.mono}>Opening Magnet…</Text>
       </SafeAreaView>
     );
   }
@@ -90,7 +92,7 @@ function ConnectionScreen({ onConnected }: { onConnected: (connection: StoredCon
       // /ready first, then an authenticated call. Separating them is what lets
       // the error say whether the URL is wrong or the key is, instead of one
       // "could not connect" covering both.
-      await new LnkzClient(candidate.baseUrl, candidate.apiKey).checkConnection();
+      await new MagnetClient(candidate.baseUrl, candidate.apiKey).checkConnection();
       await saveConnection(candidate);
       onConnected(candidate);
     } catch (cause) {
@@ -103,18 +105,15 @@ function ConnectionScreen({ onConnected }: { onConnected: (connection: StoredCon
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style={dark ? "light" : "dark"} />
-      <View style={styles.ticker}><Text style={styles.tickerText}>★ KEEP THE CONTEXT · LOSE THE NOISE · PRIVATE BY DEFAULT</Text></View>
       <ScrollView contentContainerStyle={styles.connectionPage} keyboardShouldPersistTaps="handled">
-        <Text style={styles.brandMark}>△</Text>
-        <Text style={styles.connectionTitle}>LNKZ</Text>
-        <Text style={styles.eyebrow}>CONNECT / YOUR RELAY / ONE SECURE KEY</Text>
-        <Text style={styles.hero}>YOUR CONTEXT.{"\n"}<Text style={styles.highlight}>READY TO MOVE.</Text></Text>
-        <Text style={styles.copy}>Connect this phone to the LNKZ relay that stores your conversations and creates private handoffs.</Text>
-        <Field label="SERVER URL" value={baseUrl} onChangeText={setBaseUrl} autoCapitalize="none" keyboardType="url" />
-        <Field label="API KEY" value={apiKey} onChangeText={setApiKey} autoCapitalize="none" secureTextEntry />
+        <Text style={styles.connectionTitle}>Magnet</Text>
+        <Text style={styles.hero}>Bring your conversations together.</Text>
+        <Text style={styles.copy}>Connect to your Magnet address to save conversations and share them with someone else.</Text>
+        <Field label="Magnet address" value={baseUrl} onChangeText={setBaseUrl} autoCapitalize="none" keyboardType="url" />
+        <Field label="Access key" value={apiKey} onChangeText={setApiKey} autoCapitalize="none" secureTextEntry />
         {error ? <Notice tone="error">{error}</Notice> : null}
-        <Action label={busy ? "TESTING CONNECTION…" : "CONNECT TO LNKZ →"} onPress={connect} disabled={busy} />
-        <Text style={styles.hint}>The API key is stored in the device keychain. Web preview uses this browser’s local storage.</Text>
+        <Action label={busy ? "Connecting…" : "Continue"} onPress={connect} disabled={busy} />
+        <Text style={styles.hint}>Use the address and access key from your Magnet setup. Your connection is remembered on this device.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -122,8 +121,10 @@ function ConnectionScreen({ onConnected }: { onConnected: (connection: StoredCon
 
 function RelayApp({ connection, onDisconnect }: { connection: StoredConnection; onDisconnect: () => void }) {
   const { styles, colors, dark } = useTheme();
-  const client = useMemo(() => new LnkzClient(connection.baseUrl, connection.apiKey), [connection]);
+  const client = useMemo(() => new MagnetClient(connection.baseUrl, connection.apiKey), [connection]);
   const [tab, setTab] = useState<Tab>("home");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const requestVersion = useRef(0);
   const [stats, setStats] = useState<Stats | null>(null);
   const [connectors, setConnectors] = useState<ConnectorStatus[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -156,22 +157,30 @@ function RelayApp({ connection, onDisconnect }: { connection: StoredConnection; 
   useEffect(() => { void refresh(); }, [client]);
 
   const openConversation = async (id: string) => {
+    const version = ++requestVersion.current;
     setBusy("conversation");
     setError("");
+    setMenuOpen(false);
+    setTab("home");
+    setSelected(null);
+    setSelectedId(id);
     try {
-      setSelectedId(id);
-      setSelected(await client.getConversation(id));
-      setTab("library");
+      const result = await client.getConversation(id);
+      if (version === requestVersion.current) setSelected(result);
     } catch (cause) {
-      setError(messageOf(cause));
+      if (version === requestVersion.current) setError(messageOf(cause));
     } finally {
-      setBusy("");
+      if (version === requestVersion.current) setBusy("");
     }
   };
 
   const selectTab = (next: Tab) => {
+    ++requestVersion.current;
+    setBusy("");
     setNotice("");
     setError("");
+    setMenuOpen(false);
+    if (next === "home") { setSelected(null); setSelectedId(null); }
     setTab(next);
   };
 
@@ -183,27 +192,19 @@ function RelayApp({ connection, onDisconnect }: { connection: StoredConnection; 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style={dark ? "light" : "dark"} />
-      <View style={styles.ticker}><Text style={styles.tickerText}>★ KEEP THE CONTEXT · LOSE THE NOISE · PRIVATE HANDOFF · LNKZ</Text></View>
       <View style={styles.header}>
-        <View><Text style={styles.headerBrand}>△ LNKZ</Text><Text style={styles.headerMeta}>CONTEXT RELAY · PRIVATE BY DEFAULT</Text></View>
-        <Pressable style={styles.refreshButton} onPress={() => void refresh()}><Text style={styles.refreshText}>↻ SYNC</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={menuOpen ? "Close navigation" : "Open navigation"} style={styles.iconButton} onPress={() => setMenuOpen(!menuOpen)}><Text style={styles.menuIcon}>☰</Text></Pressable>
+        <Text style={styles.headerBrand}>Magnet</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="New conversation" style={styles.iconButton} onPress={() => selectTab("home")}><Text style={styles.menuIcon}>＋</Text></Pressable>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.nav} contentContainerStyle={styles.navContent}>
-        {TABS.map((item) => (
-          <Pressable key={item.id} style={[styles.navItem, tab === item.id && styles.navItemActive]} onPress={() => selectTab(item.id)}>
-            <Text style={[styles.navIndex, tab === item.id && styles.navActiveText]}>{item.mark}</Text>
-            <Text style={[styles.navLabel, tab === item.id && styles.navActiveText]}>{item.label}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-      <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
-        {loading ? <ActivityIndicator color={colors.accent} style={styles.loader} /> : null}
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {error ? <Notice tone="error">{error}</Notice> : null}
         {notice ? <Notice>{notice}</Notice> : null}
-        {tab === "home" && <Home stats={stats} conversations={conversations} onOpen={openConversation} onTab={selectTab} />}
-        {tab === "library" && (
-          <Library client={client} conversations={conversations} selected={selected} selectedId={selectedId} busy={busy} onOpen={openConversation} />
-        )}
+        {tab === "home" ? (
+          <ChatView key={selectedId ?? "new"} client={client} value={selected} loading={busy === "conversation"} onSaved={async (id) => { await refresh(); await openConversation(id); }} onImport={() => selectTab("import")} onShare={() => selectTab("handoffs")} />
+        ) : <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+        {loading ? <ActivityIndicator color={colors.accent} style={styles.loader} /> : null}
+        {tab === "library" && <Library client={client} conversations={conversations} onOpen={openConversation} />}
         {tab === "import" && (
           <ImportView
             client={client}
@@ -232,129 +233,118 @@ function RelayApp({ connection, onDisconnect }: { connection: StoredConnection; 
         {tab === "settings" && (
           <SettingsView connection={connection} stats={stats} connectors={connectors} client={client} disconnect={disconnect} setError={setError} setNotice={setNotice} />
         )}
-      </ScrollView>
+        </ScrollView>}
+      </KeyboardAvoidingView>
+      {menuOpen ? <View style={styles.menuOverlay}>
+        <Pressable accessibilityLabel="Close navigation" accessibilityRole="button" style={styles.menuBackdrop} onPress={() => setMenuOpen(false)} />
+        <ScrollView style={styles.sidebar} contentContainerStyle={styles.sidebarContent}>
+          {TABS.map((item) => <Pressable key={item.id} accessibilityRole="button" style={[styles.navItem, tab === item.id && styles.navItemActive]} onPress={() => selectTab(item.id)}><Text style={styles.navLabel}>{item.label}</Text></Pressable>)}
+          <SectionTitle>Recent conversations</SectionTitle>
+          {conversations.slice(0, 20).map((item) => <Pressable key={item.id} accessibilityRole="button" style={styles.navItem} onPress={() => void openConversation(item.id)}><Text numberOfLines={1} style={styles.rowTitle}>{item.title}</Text></Pressable>)}
+          {!conversations.length ? <Text style={styles.hint}>Your conversations will appear here.</Text> : null}
+        </ScrollView>
+      </View> : null}
     </SafeAreaView>
   );
 }
 
-function Home({ stats, conversations, onOpen, onTab }: {
-  stats: Stats | null;
+function Library({ client, conversations, onOpen }: {
+  client: MagnetClient;
   conversations: ConversationSummary[];
   onOpen: (id: string) => Promise<void>;
-  onTab: (tab: Tab) => void;
 }) {
   const { styles } = useTheme();
-  return (
-    <View>
-      <Text style={styles.eyebrow}>RELAY / LIVE WORKSPACE / READY WHEN YOU ARE</Text>
-      <Text style={styles.hero}><Text style={styles.crossed}>NOISE.</Text>{"\n"}IS NOW{"\n"}<Text style={styles.highlight}>USEFUL.</Text></Text>
-      <Text style={styles.copy}>Import a conversation, inspect what matters, and make one private handoff.</Text>
-      <View style={styles.statsGrid}>
-        <Stat label="THREADS" value={stats?.conversations ?? 0} />
-        <Stat label="MESSAGES" value={stats?.messages ?? 0} />
-        <Stat label="ACTIVE LINKS" value={stats?.activeHandoffs ?? 0} />
-        <Stat label="SOURCES" value={stats?.providers.length ?? 0} />
-      </View>
-      <SectionTitle>RECENT CONVERSATIONS</SectionTitle>
-      {conversations.slice(0, 4).map((item, index) => <ConversationRow key={item.id} item={item} index={index + 1} onPress={() => void onOpen(item.id)} />)}
-      {!conversations.length ? <Empty>Nothing here yet. Import your first conversation.</Empty> : null}
-      <View style={styles.buttonRow}>
-        <Action label="IMPORT" onPress={() => onTab("import")} secondary />
-        <Action label="CREATE HANDOFF →" onPress={() => onTab("handoffs")} />
-      </View>
-    </View>
-  );
-}
-
-function Library({ client, conversations, selected, selectedId, busy, onOpen }: {
-  client: LnkzClient;
-  conversations: ConversationSummary[];
-  selected: { conversation: Conversation; analysis: Analysis } | null;
-  selectedId: string | null;
-  busy: string;
-  onOpen: (id: string) => Promise<void>;
-}) {
-  const { styles, colors } = useTheme();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ConversationSummary[]>(conversations);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
   useEffect(() => { if (!query.trim()) setResults(conversations); }, [conversations, query]);
 
   const search = async () => {
     if (!query.trim()) { setResults(conversations); return; }
     setSearching(true);
+    setSearchError("");
     try { setResults((await client.searchConversations(query.trim())).matches); }
+    catch (cause) { setSearchError(messageOf(cause)); }
     finally { setSearching(false); }
   };
 
   return (
     <View>
-      <Text style={styles.eyebrow}>LIBRARY / SAVED THREADS / SEARCHABLE CONTEXT</Text>
-      <Text style={styles.pageTitle}>THE THREAD.</Text>
-      <Field label="SEARCH" value={query} onChangeText={setQuery} returnKeyType="search" onSubmitEditing={() => void search()} placeholder="Decisions, topics, people…" />
-      <Action label={searching ? "SEARCHING…" : "SEARCH LIBRARY"} onPress={search} secondary disabled={searching} />
+      <Text style={styles.pageTitle}>Your conversations</Text>
+      {searchError ? <Notice tone="error">{searchError}</Notice> : null}
+      <Field label="Search" value={query} onChangeText={setQuery} returnKeyType="search" onSubmitEditing={() => void search()} placeholder="Decisions, topics, people…" />
+      <Action label={searching ? "SearchING…" : "Search LIBRARY"} onPress={search} secondary disabled={searching} />
       <View style={styles.divider} />
       {results.map((item, index) => (
-        <ConversationRow key={item.id} item={item} index={index + 1} selected={selectedId === item.id} onPress={() => void onOpen(item.id)} />
+        <ConversationRow key={item.id} item={item} index={index + 1} onPress={() => void onOpen(item.id)} />
       ))}
       {!results.length ? <Empty>No matching conversations.</Empty> : null}
-      {busy === "conversation" ? <ActivityIndicator color={colors.accent} /> : null}
-      {selected ? <ConversationDetail client={client} value={selected} onChanged={() => onOpen(selected.conversation.id)} /> : null}
     </View>
   );
 }
 
-function ConversationDetail({ client, value, onChanged }: {
-  client: LnkzClient;
-  value: { conversation: Conversation; analysis: Analysis };
-  onChanged: () => Promise<void>;
+function ChatView({ client, value, loading, onSaved, onImport, onShare }: {
+  client: MagnetClient;
+  value: { conversation: Conversation; analysis: Analysis } | null;
+  loading: boolean;
+  onSaved: (id: string) => Promise<void>;
+  onImport: () => void;
+  onShare: () => void;
 }) {
   const { styles, colors } = useTheme();
-  const [followUp, setFollowUp] = useState("");
+  const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState("");
-
-  const save = async () => {
-    const content = followUp.trim();
-    if (!content) { setProblem("Write something first."); return; }
-    setSaving(true);
-    setProblem("");
+  const [details, setDetails] = useState(false);
+  const scroll = useRef<ScrollView>(null);
+  const send = async () => {
+    const content = draft.trim();
+    if (!content || saving || loading) return;
+    setSaving(true); setProblem("");
     try {
-      await client.appendMessage(value.conversation.id, { role: "user", content });
-      // Only cleared once the server has it. Losing what someone typed because
-      // a request failed is the fastest way to make an app untrustworthy.
-      setFollowUp("");
-      await onChanged();
-    } catch (cause) {
-      setProblem(messageOf(cause));
-    } finally {
-      setSaving(false);
-    }
+      const result = value
+        ? await client.appendMessage(value.conversation.id, { role: "user", content })
+        : await client.createConversation(content);
+      setDraft("");
+      await onSaved(result.conversation.id);
+    } catch (cause) { setProblem(messageOf(cause)); }
+    finally { setSaving(false); }
   };
-
-  return (
-    <View style={styles.detailCard}>
-      <Text style={styles.detailLabel}>SELECTED THREAD</Text>
-      <Text style={styles.detailTitle}>{value.conversation.title}</Text>
-      <Text style={styles.meta}>{value.conversation.source.provider} · {value.analysis.approxTokens} APPROX TOKENS</Text>
-      <Provenance lineage={value.conversation.lineage} />
-      <ClaimList title="DECISIONS" values={value.analysis.decisions.map((item) => item.text)} />
-      <ClaimList title="OPEN QUESTIONS" values={value.analysis.openQuestions.map((item) => item.text)} />
-      <ClaimList title="ACTIONS" values={value.analysis.actionItems.map((item) => item.text)} />
-      <SectionTitle>TRANSCRIPT</SectionTitle>
-      {value.conversation.messages.map((message) => (
-        <View key={message.id} style={[styles.message, message.role === "assistant" && styles.assistantMessage]}>
-          <Text style={styles.messageRole}>{message.author || message.role}</Text>
-          <Text style={styles.messageText}>{message.content}</Text>
-        </View>
-      ))}
-      <SectionTitle>ADD A FOLLOW-UP</SectionTitle>
-      <TextInput multiline textAlignVertical="top" style={styles.textarea} value={followUp} onChangeText={setFollowUp} placeholder="What happened next…" placeholderTextColor={colors.subtle} />
-      {problem ? <Text style={styles.hint}>{problem}</Text> : null}
-      <Action label={saving ? "SAVING…" : "SAVE FOLLOW-UP →"} onPress={save} disabled={saving} secondary />
+  return <View style={styles.chat}>
+    {value ? <View style={styles.chatToolbar}>
+      <Text numberOfLines={1} style={[styles.rowTitle, styles.flex]}>{value.conversation.title}</Text>
+      <Pressable accessibilityRole="button" style={styles.smallButton} onPress={() => setDetails(!details)}><Text style={styles.hint}>Details</Text></Pressable>
+      <Pressable accessibilityRole="button" style={styles.smallButton} onPress={onShare}><Text>Share</Text></Pressable>
+    </View> : null}
+    <ScrollView ref={scroll} contentContainerStyle={[styles.chatContent, !value && styles.chatEmpty]} keyboardShouldPersistTaps="handled" onContentSizeChange={() => { if (value && !details) scroll.current?.scrollToEnd({ animated: false }); }}>
+      {loading ? <ActivityIndicator color={colors.accent} /> : value ? <>
+        {details ? <View style={styles.detailCard}>
+          <Provenance lineage={value.conversation.lineage} />
+          <ClaimList title="Decisions" values={value.analysis.decisions.map((item) => item.text)} />
+          <ClaimList title="Open questions" values={value.analysis.openQuestions.map((item) => item.text)} />
+          <Text style={styles.hint}>Originally from {value.conversation.source.provider} · {value.conversation.messages.length} messages</Text>
+        </View> : null}
+        {value.conversation.messages.map((message) => <View key={message.id} style={[styles.message, message.role === "user" ? styles.userMessage : styles.assistantMessage]}>
+          <Text style={styles.messageRole}>{message.author || (message.role === "user" ? "You" : message.role === "assistant" ? value.conversation.source.provider : message.role)}</Text>
+          <Text selectable style={styles.messageText}>{message.content}</Text>
+        </View>)}
+      </> : <View style={styles.welcome}>
+        <Text style={styles.welcomeTitle}>What would you like to share?</Text>
+        <Text style={styles.welcomeCopy}>A conversation worth keeping. An idea worth passing on.</Text>
+        <Pressable accessibilityRole="button" style={styles.suggestion} onPress={onImport}><Text style={styles.rowTitle}>Import a conversation</Text><Text style={styles.hint}>Bring a chat or a shared link into Magnet →</Text></Pressable>
+      </View>}
+    </ScrollView>
+    <View style={styles.composerArea}>
+      {problem ? <Notice tone="error">{problem}</Notice> : null}
+      <View style={styles.composer}>
+        <TextInput accessibilityLabel="Message" multiline textAlignVertical="top" style={styles.composerInput} value={draft} onChangeText={setDraft} editable={!saving && !loading} placeholder="Write a message…" placeholderTextColor={colors.subtle} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: saving || loading || !draft.trim() }} style={[styles.sendButton, (saving || loading || !draft.trim()) && styles.disabled]} disabled={saving || loading || !draft.trim()} onPress={() => void send()}>{saving ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.sendIcon}>↑</Text>}</Pressable>
+      </View>
+      <Text style={styles.composerHint}>Saved to this conversation. Share a link when you’re ready. AI replies aren’t generated here.</Text>
     </View>
-  );
+  </View>;
 }
 
 /**
@@ -370,7 +360,7 @@ function Provenance({ lineage }: { lineage?: Lineage }) {
   if (!lineage?.originInstance && !lineage?.continuedBy && !lineage?.parentId) return null;
   return (
     <View style={styles.provenance}>
-      <Text style={styles.detailLabel}>WHERE THIS CAME FROM</Text>
+      <Text style={styles.detailLabel}>Where this came from</Text>
       {lineage.originInstance ? (
         <Text style={styles.meta}>Handed over by {lineage.originInstance}</Text>
       ) : null}
@@ -388,7 +378,7 @@ function Provenance({ lineage }: { lineage?: Lineage }) {
 }
 
 function ImportView({ client, busy, setBusy, onImported, setError }: {
-  client: LnkzClient;
+  client: MagnetClient;
   busy: string;
   setBusy: (value: string) => void;
   onImported: (conversation: ConversationSummary) => Promise<void>;
@@ -418,13 +408,12 @@ function ImportView({ client, busy, setBusy, onImported, setError }: {
 
   return (
     <View>
-      <Text style={styles.eyebrow}>IMPORT / PASTE THE USEFUL PART / SAVED TO YOUR RELAY</Text>
-      <Text style={styles.pageTitle}>BRING IT{"\n"}<Text style={styles.highlight}>WITH YOU.</Text></Text>
-      <Field label="TAGS (OPTIONAL)" value={tags} onChangeText={setTags} placeholder="research, launch" />
-      <Text style={styles.fieldLabel}>CONVERSATION OR EXPORT</Text>
+      <Text style={styles.pageTitle}>Bring a conversation</Text>
+      <Field label="Tags (optional)" value={tags} onChangeText={setTags} placeholder="research, launch" />
+      <Text style={styles.fieldLabel}>Conversation or export</Text>
       <TextInput multiline textAlignVertical="top" style={styles.textarea} value={payload} onChangeText={setPayload} placeholder="Paste ChatGPT, Claude, Gemini, Markdown, JSON, or plain text…" placeholderTextColor={colors.subtle} />
-      <Text style={styles.hint}>LNKZ detects the format and preserves the original message order.</Text>
-      <Action label={busy === "import" ? "IMPORTING…" : "IMPORT CONVERSATION →"} onPress={run} disabled={busy === "import"} />
+      <Text style={styles.hint}>Magnet detects the format and preserves the original message order.</Text>
+      <Action label={busy === "import" ? "Importing…" : "Import conversation →"} onPress={run} disabled={busy === "import"} />
       <View style={styles.divider} />
       <ReceiveLink client={client} onReceived={onImported} setError={setError} />
     </View>
@@ -445,7 +434,7 @@ function ImportView({ client, busy, setBusy, onImported, setError }: {
  * inside before committing means nobody burns a one-use link finding out.
  */
 function ReceiveLink({ client, onReceived, setError }: {
-  client: LnkzClient;
+  client: MagnetClient;
   onReceived: (conversation: ConversationSummary) => Promise<void>;
   setError: (value: string) => void;
 }) {
@@ -498,9 +487,9 @@ function ReceiveLink({ client, onReceived, setError }: {
 
   return (
     <View>
-      <Text style={styles.eyebrow}>RECEIVE / A LINK SOMEONE SENT YOU</Text>
-      <Field label="HANDOFF LINK" value={url} onChangeText={(value) => { setUrl(value); setPreview(null); }} editable={!working} autoCapitalize="none" placeholder="https://their-relay.example.com/share/…" />
-      <Action label={working === "preview" ? "LOOKING…" : "PREVIEW LINK"} onPress={() => void look()} secondary disabled={Boolean(working)} />
+      <Text style={styles.eyebrow}>Open a shared link</Text>
+      <Field label="Handoff link" value={url} onChangeText={(value) => { setUrl(value); setPreview(null); }} editable={!working} autoCapitalize="none" placeholder="https://magnet.example.com/share/…" />
+      <Action label={working === "preview" ? "Looking…" : "Preview link"} onPress={() => void look()} secondary disabled={Boolean(working)} />
       {preview ? (
         <View style={styles.provenance}>
           <Text style={styles.detailLabel}>{preview.preview.title}</Text>
@@ -514,22 +503,22 @@ function ReceiveLink({ client, onReceived, setError }: {
           {preview.warnings.map((warning) => <Text key={warning} style={styles.hint}>{warning}</Text>)}
         </View>
       ) : null}
-      <Field label="CONTINUE IN" value={provider} onChangeText={setProvider} autoCapitalize="none" placeholder="claude, gemini, chatgpt…" />
-      <Text style={styles.fieldLabel}>YOUR TURN (FOR CONTINUING)</Text>
+      <Field label="Continue in" value={provider} onChangeText={setProvider} autoCapitalize="none" placeholder="claude, gemini, chatgpt…" />
+      <Text style={styles.fieldLabel}>Your turn (for continuing)</Text>
       <View style={styles.buttonRow}>
         <Action label={role === "user" ? "✓ MY MESSAGE" : "MY MESSAGE"} onPress={() => setRole("user")} secondary />
         <Action label={role === "assistant" ? "✓ MODEL RESPONSE" : "MODEL RESPONSE"} onPress={() => setRole("assistant")} secondary />
       </View>
       <TextInput multiline textAlignVertical="top" style={styles.textarea} value={reply} onChangeText={setReply} placeholder="What you are adding on top of their work…" placeholderTextColor={colors.subtle} />
-      <Action label={working === "continue" ? "CONTINUING…" : "CONTINUE IT HERE →"} onPress={() => void take("continue")} disabled={Boolean(working) || !preview} />
-      <Action label={working === "copy" ? "IMPORTING…" : "JUST KEEP A COPY"} onPress={() => void take("copy")} secondary disabled={Boolean(working) || !preview} />
-      <Text style={styles.hint}>Preview first, then choose one action. Receiving spends one use. LNKZ saves the turn you enter; it does not call the named model.</Text>
+      <Action label={working === "continue" ? "Continuing…" : "Continue it here →"} onPress={() => void take("continue")} disabled={Boolean(working) || !preview} />
+      <Action label={working === "copy" ? "Importing…" : "Just keep a copy"} onPress={() => void take("copy")} secondary disabled={Boolean(working) || !preview} />
+      <Text style={styles.hint}>Preview first, then choose one action. Receiving spends one use. Magnet saves the turn you enter; it does not call the named model.</Text>
     </View>
   );
 }
 
 function HandoffsView({ client, conversations, handoffs, selectedId, onSelect, refresh, setError, setNotice }: {
-  client: LnkzClient;
+  client: MagnetClient;
   conversations: ConversationSummary[];
   handoffs: HandoffSummary[];
   selectedId: string | null;
@@ -568,7 +557,7 @@ function HandoffsView({ client, conversations, handoffs, selectedId, onSelect, r
         redact,
       });
       setIssued(result);
-      setNotice("Private handoff created.");
+      setNotice("Share link created.");
       await refresh();
     } catch (cause) { setError(messageOf(cause)); }
     finally { setWorking(""); }
@@ -578,7 +567,7 @@ function HandoffsView({ client, conversations, handoffs, selectedId, onSelect, r
     try {
     if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.clipboard) {
       await navigator.clipboard.writeText(value);
-      setNotice("Handoff link copied.");
+      setNotice("Share link copied.");
       return;
     }
       if (Platform.OS === "web") {
@@ -591,44 +580,43 @@ function HandoffsView({ client, conversations, handoffs, selectedId, onSelect, r
 
   const revoke = async (id: string) => {
     setWorking(id); setError("");
-    try { await client.revokeHandoff(id); setNotice("Handoff revoked."); await refresh(); }
+    try { await client.revokeHandoff(id); setNotice("Share link revoked."); await refresh(); }
     catch (cause) { setError(messageOf(cause)); }
     finally { setWorking(""); }
   };
 
   return (
     <View>
-      <Text style={styles.eyebrow}>HANDOFF / BOUNDED CONTEXT / EXPIRING ACCESS</Text>
-      <Text style={styles.pageTitle}>MAKE THE{"\n"}<Text style={styles.highlight}>HANDOFF.</Text></Text>
-      <SectionTitle>1 · CHOOSE THE THREAD</SectionTitle>
+      <Text style={styles.pageTitle}>Share a conversation</Text>
+      <SectionTitle>1 · choose the thread</SectionTitle>
       {conversations.map((item, index) => (
         <ConversationRow key={item.id} item={item} index={index + 1} selected={chosen?.id === item.id} onPress={() => { onSelect(item.id); setIssued(null); setPacket(null); }} />
       ))}
       {!chosen ? <Empty>Import a conversation before creating a handoff.</Empty> : null}
       {chosen ? (
         <>
-          <SectionTitle>2 · REVIEW THE PACKET</SectionTitle>
-          <Action label={working === "packet" ? "BUILDING…" : "BUILD CONTEXT PACKET"} onPress={buildPacket} secondary disabled={Boolean(working)} />
+          <SectionTitle>2 · review the packet</SectionTitle>
+          <Action label={working === "packet" ? "Building…" : "Build context packet"} onPress={buildPacket} secondary disabled={Boolean(working)} />
           {packet ? <View style={styles.packet}><Text style={styles.meta}>{packet.usedTokens} / {packet.budgetTokens} TOKENS</Text><Text style={styles.packetText}>{packet.markdown}</Text></View> : null}
-          <SectionTitle>3 · SET THE BOUNDARY</SectionTitle>
-          <Field label="AUDIENCE" value={audience} onChangeText={setAudience} placeholder="Claude · My space" />
+          <SectionTitle>3 · set the boundary</SectionTitle>
+          <Field label="Audience" value={audience} onChangeText={setAudience} placeholder="Claude · My space" />
           <View style={styles.fieldRow}>
-            <View style={styles.fieldHalf}><Field label="EXPIRES IN MINUTES" value={ttl} onChangeText={setTtl} keyboardType="number-pad" /></View>
-            <View style={styles.fieldHalf}><Field label="MAX USES" value={uses} onChangeText={setUses} keyboardType="number-pad" /></View>
+            <View style={styles.fieldHalf}><Field label="Expires in minutes" value={ttl} onChangeText={setTtl} keyboardType="number-pad" /></View>
+            <View style={styles.fieldHalf}><Field label="Max uses" value={uses} onChangeText={setUses} keyboardType="number-pad" /></View>
           </View>
-          <View style={styles.switchRow}><View style={styles.switchCopy}><Text style={styles.switchTitle}>REDACT SENSITIVE TEXT</Text><Text style={styles.hint}>Remove emails, secrets, and bearer tokens.</Text></View><Switch value={redact} onValueChange={setRedact} trackColor={{ false: colors.strong, true: colors.accent }} /></View>
-          <Action label={working === "handoff" ? "CREATING…" : "CREATE PRIVATE HANDOFF →"} onPress={create} disabled={Boolean(working)} />
-          {issued ? <View style={styles.successCard}><Text style={styles.detailLabel}>EXPIRING HANDOFF LINK</Text><Text selectable style={styles.link}>{issued.shareUrl}</Text><Action label="COPY OR SHARE LINK" onPress={() => void share(issued.shareUrl)} secondary /></View> : null}
+          <View style={styles.switchRow}><View style={styles.switchCopy}><Text style={styles.switchTitle}>Redact sensitive text</Text><Text style={styles.hint}>Filter common emails and credentials. Review the content before sharing.</Text></View><Switch value={redact} onValueChange={setRedact} trackColor={{ false: colors.strong, true: colors.accent }} /></View>
+          <Action label={working === "handoff" ? "Creating…" : "Create share link →"} onPress={create} disabled={Boolean(working)} />
+          {issued ? <View style={styles.successCard}><Text style={styles.detailLabel}>EXPIRING Handoff link</Text><Text selectable style={styles.link}>{issued.shareUrl}</Text><Action label="Copy or share link" onPress={() => void share(issued.shareUrl)} secondary /></View> : null}
         </>
       ) : null}
-      <SectionTitle>ISSUED HANDOFFS</SectionTitle>
+      <SectionTitle>Issued handoffs</SectionTitle>
       {handoffs.map((handoff) => (
         <View key={handoff.id} style={styles.handoffRow}>
-          <View style={styles.flex}><Text style={styles.rowTitle}>{handoff.audience || "PRIVATE LINK"}</Text><Text style={styles.meta}>{handoff.active ? "ACTIVE" : handoff.revokedAt ? "REVOKED" : "EXPIRED OR SPENT"} · {handoff.uses}/{handoff.maxUses} USES · {shortDate(handoff.expiresAt)}</Text></View>
-          {handoff.active ? <Pressable style={styles.revokeButton} onPress={() => void revoke(handoff.id)} disabled={working === handoff.id}><Text style={styles.revokeText}>REVOKE</Text></Pressable> : null}
+          <View style={styles.flex}><Text style={styles.rowTitle}>{handoff.audience || "PRIVATE LINK"}</Text><Text style={styles.meta}>{handoff.active ? "ACTIVE" : handoff.revokedAt ? "RevokeD" : "EXPIRED OR SPENT"} · {handoff.uses}/{handoff.maxUses} USES · {shortDate(handoff.expiresAt)}</Text></View>
+          {handoff.active ? <Pressable style={styles.revokeButton} onPress={() => void revoke(handoff.id)} disabled={working === handoff.id}><Text style={styles.revokeText}>Revoke</Text></Pressable> : null}
         </View>
       ))}
-      {!handoffs.length ? <Empty>No handoffs issued yet.</Empty> : null}
+      {!handoffs.length ? <Empty>No shared links yet.</Empty> : null}
     </View>
   );
 }
@@ -637,7 +625,7 @@ function SettingsView({ connection, stats, connectors, client, disconnect, setEr
   connection: StoredConnection;
   stats: Stats | null;
   connectors: ConnectorStatus[];
-  client: LnkzClient;
+  client: MagnetClient;
   disconnect: () => Promise<void>;
   setError: (value: string) => void;
   setNotice: (value: string) => void;
@@ -652,29 +640,27 @@ function SettingsView({ connection, stats, connectors, client, disconnect, setEr
   };
   return (
     <View>
-      <Text style={styles.eyebrow}>SETTINGS / CONNECTION / CONNECTOR READINESS</Text>
-      <Text style={styles.pageTitle}>YOUR RELAY.</Text>
-      <View style={styles.detailCard}><Text style={styles.detailLabel}>SERVER</Text><Text selectable style={styles.link}>{connection.baseUrl}</Text><Text style={styles.meta}>{stats ? "CONNECTED" : "STATUS UNKNOWN"}</Text></View>
-      <Action label={testing ? "TESTING…" : "RETEST CONNECTION"} onPress={retest} secondary disabled={testing} />
-      <SectionTitle>CONNECTED SOURCES</SectionTitle>
-      {connectors.map((connector) => (
+      <Text style={styles.pageTitle}>Settings</Text>
+      <View style={styles.detailCard}><Text style={styles.detailLabel}>Server</Text><Text selectable style={styles.link}>{connection.baseUrl}</Text><Text style={styles.meta}>{stats ? "CONNECTED" : "STATUS UNKNOWN"}</Text></View>
+      <Action label={testing ? "Testing…" : "Retest connection"} onPress={retest} secondary disabled={testing} />
+      <SectionTitle>Connected sources</SectionTitle>
+      {connectors.filter((connector) => connector.configured).map((connector) => (
         <View key={connector.id} style={styles.connectorRow}>
           <View style={[styles.dot, connector.configured && styles.dotOn]} />
           <View style={styles.flex}><Text style={styles.rowTitle}>{connector.label}</Text><Text style={styles.meta}>{connector.detail}</Text></View>
         </View>
       ))}
       <View style={styles.divider} />
-      <Pressable style={styles.disconnectButton} onPress={() => void disconnect()}><Text style={styles.disconnectText}>DISCONNECT THIS DEVICE</Text></Pressable>
+      <Pressable style={styles.disconnectButton} onPress={() => void disconnect()}><Text style={styles.disconnectText}>Disconnect this device</Text></Pressable>
       <Text style={styles.hint}>Disconnecting clears the saved server URL and API key from this device.</Text>
     </View>
   );
 }
 
-function ConversationRow({ item, index, selected, onPress }: { item: ConversationSummary; index: number; selected?: boolean; onPress: () => void }) {
+function ConversationRow({ item, selected, onPress }: { item: ConversationSummary; index: number; selected?: boolean; onPress: () => void }) {
   const { styles } = useTheme();
   return (
     <Pressable style={[styles.conversationRow, selected && styles.conversationSelected]} onPress={onPress}>
-      <Text style={styles.rowIndex}>{String(index).padStart(2, "0")}</Text>
       <View style={styles.sourceBadge}><Text style={styles.sourceText}>{item.source.provider.slice(0, 2).toUpperCase()}</Text></View>
       <View style={styles.flex}><Text numberOfLines={2} style={styles.rowTitle}>{item.title}</Text><Text style={styles.meta}>{item.messageCount} MESSAGES · {shortDate(item.updatedAt)}</Text></View>
       <Text style={styles.arrow}>→</Text>
@@ -702,8 +688,6 @@ function SectionTitle({ children }: { children: ReactNode }) {
   const { styles } = useTheme(); return <Text style={styles.sectionTitle}>{children}</Text>; }
 function Empty({ children }: { children: ReactNode }) {
   const { styles } = useTheme(); return <Text style={styles.empty}>{children}</Text>; }
-function Stat({ label, value }: { label: string; value: number }) {
-  const { styles } = useTheme(); return <View style={styles.stat}><Text style={styles.statLabel}>{label}</Text><Text style={styles.statValue}>{value}</Text></View>; }
 function ClaimList({ title, values }: { title: string; values: string[] }) {
   const { styles } = useTheme();
   if (!values.length) return null;

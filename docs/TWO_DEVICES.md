@@ -1,4 +1,4 @@
-# Use LNKZ on two devices
+# Use Magnet on two devices
 
 This setup serves the Expo mobile interface in each device's browser. Two independent
 relays run on your laptop, with separate API keys and SQLite databases. The devices
@@ -63,9 +63,9 @@ HTTPS before running this across the internet.
    devices. Both libraries should retain their copies. Keys and data remain in
    `.data/two-devices/`.
 
-LNKZ transports conversations and builds context packets. The client/provider
+Magnet transports conversations and builds context packets. The client/provider
 field records where you continue your work; it does not call that model. Copy
-the context packet into your LLM client, then save its response in LNKZ.
+the context packet into your LLM client, then save its response in Magnet.
 
 ## Automated evidence
 

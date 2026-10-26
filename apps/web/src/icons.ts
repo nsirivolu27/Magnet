@@ -1,5 +1,5 @@
 /**
- * A tiny inline icon set. LNKZ shipped with an icon package before, which meant
+ * A tiny inline icon set. Magnet shipped with an icon package before, which meant
  * a runtime dependency and a bundler plugin for what amounts to twenty paths.
  * These are drawn with the same 24px stroke grid so they stay visually uniform.
  */

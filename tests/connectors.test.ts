@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDocumentsConnector } from "../src/lnkz/connectors/documents.js";
-import { createFantasyConnector } from "../src/lnkz/connectors/fantasy.js";
-import { createFigmaConnector } from "../src/lnkz/connectors/figma.js";
-import { createJiraConnector } from "../src/lnkz/connectors/jira.js";
-import { createSlackConnector } from "../src/lnkz/connectors/slack.js";
+import { createDocumentsConnector } from "../src/magnet/connectors/documents.js";
+import { createFantasyConnector } from "../src/magnet/connectors/fantasy.js";
+import { createFigmaConnector } from "../src/magnet/connectors/figma.js";
+import { createJiraConnector } from "../src/magnet/connectors/jira.js";
+import { createSlackConnector } from "../src/magnet/connectors/slack.js";
 
 test("connectors stay disabled until their complete credential set exists", () => {
   assert.equal(createSlackConnector({}), null);

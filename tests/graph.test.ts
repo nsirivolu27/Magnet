@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildConversationGraph, graphToMarkdown } from "../src/lnkz/graph/index.js";
-import type { Conversation } from "../src/lnkz/types.js";
+import { buildConversationGraph, graphToMarkdown } from "../src/magnet/graph/index.js";
+import type { Conversation } from "../src/magnet/types.js";
 
 function conversation(
   id: string,
@@ -105,7 +105,7 @@ test("a conversation connected only to its own claims counts as isolated", () =>
 
 test("the summary names the hubs and the contradictions", () => {
   const markdown = graphToMarkdown(buildConversationGraph([storageA, storageB, unrelated]));
-  assert.match(markdown, /# LNKZ conversation graph/);
+  assert.match(markdown, /# Magnet conversation graph/);
   assert.match(markdown, /## Most connected/);
   assert.match(markdown, /## Contradictions/);
 });

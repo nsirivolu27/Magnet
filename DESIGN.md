@@ -1,29 +1,34 @@
-# LNKZ in the Magentic design system
+# Magnet application design
 
-LNKZ keeps its product name and uses the Magentic magenta accent. Magenta marks
-the primary action and focus, not headings, decorative icons, or panels.
+Magnet uses a monochrome black-and-white interface with neutral grays, sentence-case
+labels, readable message text, and a persistent composer. Conversation history,
+imports, sharing, and settings live in the navigation menu. Infrastructure and
+cloud-provider details belong in deployment docs, not the conversation screen.
 
-The source of truth is `lnkz-mcp/brand/tokens.css` and its companion README.
-`apps/web/src/magentic-tokens.css` is the vendored copy from commit `d421033`;
-update it from that source rather than inventing local palette values. This
-copy keeps LNKZ builds independent of another checkout and adds no dependency.
+This direction replaces Magnet's previous shared magenta branding. The separate
+Magentic product keeps its own design system.
 
-Dark is the base. The system light preference selects the full light palette;
-`data-theme="dark"` or `data-theme="light"` on the root explicitly overrides it.
-Both the landing page and console inherit the same tokens.
+## Tokens and themes
 
-The Expo mobile app uses the native equivalents in `apps/mobile/src/theme.ts`
-and the shared styles in `apps/mobile/src/styles.ts`. It follows the device's
-light/dark preference, with dark as the fallback. Keep these native values aligned
-with the vendored CSS tokens; no sibling checkout is needed at runtime.
+Use `apps/mobile/src/theme.ts` for native colors, `apps/mobile/src/styles.ts` for
+native layout, and the root variables in `apps/web/src/styles.css` for the landing
+page and advanced console. Both have neutral dark and light palettes that follow
+the system preference, with dark as the fallback. No external fonts or sibling
+checkout are required.
 
-Use semantic CSS variables. No raw colour utilities and no opacity modifiers
-on variables. Existing `--ink`, `--muted`, `--line`, `--green`, `--lime`, and
-`--paper` names remain supported; the historical green/lime names alias the
-accent and are not a second palette.
+Use semantic tokens. Never write raw color utilities or opacity modifiers on CSS
+variables. Legacy `--green` and `--lime` variable names are neutral compatibility
+aliases used by the console; they are not colored accents.
 
-Use Instrument Sans and JetBrains Mono stacks, the shared type/spacing scales,
-and small field/panel corners. Elevation is a surface plus a hairline; only
-overlays cast shadows. Use scale and weight for hierarchy, with uppercase rare.
-Keep tap targets at least 44px and respect reduced motion. Theme-specific
-foregrounds, including `--on-accent`, must accompany their backgrounds.
+Use system fonts, generous whitespace, subtle borders, and rounded controls.
+Hierarchy comes from spacing and weight, not banners or all-caps dashboards.
+Tap targets must be at least 44px. Status and errors must have text labels rather
+than relying on color. Buttons need accessible labels and disabled states.
+
+## Behavior
+
+The composer saves human messages. Imported assistant responses retain their
+source attribution; the app does not invent model replies or delivery receipts.
+Show the transcript first. Put analysis and origin details behind Details, and
+keep cloud infrastructure out of the primary navigation. Do not imply that an
+access-controlled conversation is end-to-end encrypted.

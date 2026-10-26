@@ -5,7 +5,7 @@ This file fixes the boundary before anything is written against it.
 
 ## Why it is not in `intel/`
 
-The analysis in `src/lnkz/intel/` makes no model calls. That is not an
+The analysis in `src/magnet/intel/` makes no model calls. That is not an
 oversight to be corrected later, it is what three other things rest on.
 
 `find_conflicts` and `find_duplicates` return the same answer for the same
@@ -26,7 +26,7 @@ component with a different contract.
 A separate package that is a client of the relay, not a part of it.
 
 - It reads through the REST API with an ordinary API key and read scope. It
-  does not import from `src/lnkz` and does not open the database. If it ever
+  does not import from `src/magnet` and does not open the database. If it ever
   needs to, the boundary is wrong.
 - It writes enrichment back as its own record type, never as an edit to a
   conversation or to deterministic analysis. A reader can always tell which

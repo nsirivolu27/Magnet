@@ -1,8 +1,8 @@
 # Graphify on this repository
 
 [Graphify](https://github.com/Graphify-Labs/graphify) turns a codebase into a queryable
-knowledge graph and can expose that graph over MCP. LNKZ uses it two ways: as a working
-aid while the server is being built, and as a second MCP server sitting beside LNKZ's own,
+knowledge graph and can expose that graph over MCP. Magnet uses it two ways: as a working
+aid while the server is being built, and as a second MCP server sitting beside Magnet's own,
 which is a useful demonstration that the client is talking to a federation rather than a
 single process.
 
@@ -24,15 +24,16 @@ graphify hook install
 
 ## Use it from Claude Code
 
-`.mcp.json` in the repository root already registers two stdio servers:
+The local `.mcp.json` registers Graphify. Add the Magnet entry below to connect
+the relay as a second stdio server:
 
 | Server | What it answers |
 | --- | --- |
 | `graphify` | Structure questions: what depends on what, which modules are hubs, where a concept lives |
-| `lnkz` | Conversation context: saved chats, packets, handoffs, connected sources |
+| `magnet` | Conversation context: saved chats, packets, handoffs, connected sources |
 
-Claude Code picks that file up when it is opened in this folder. Build the LNKZ server first
-so the standalone `lnkz-mcp/dist/stdio.js` exists:
+Claude Code picks that file up when it is opened in this folder. Build the Magnet server first
+so `dist/magnet/stdio.mjs` exists:
 
 ```bash
 npm run build
@@ -47,11 +48,11 @@ The desktop app reads `%APPDATA%\Claude\claude_desktop_config.json`, which lives
 protected folder, so it has to be written from the machine itself:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\setup-graphify.ps1
+pwsh -ExecutionPolicy Bypass -File scripts\setup-graphify.ps1
 ```
 
 The script preserves any servers already configured, backs the file up, and adds only the
-`graphify` and `lnkz` entries. Restart the desktop app afterwards.
+`graphify` and `magnet` entries. Restart the desktop app afterwards.
 
 If you would rather edit it by hand, this is the equivalent:
 
@@ -62,10 +63,10 @@ If you would rather edit it by hand, this is the equivalent:
       "command": "C:\\Users\\nsiri\\AppData\\Roaming\\uv\\tools\\graphifyy\\Scripts\\python.exe",
       "args": ["-m", "graphify.serve", "C:\\Users\\nsiri\\OneDrive\\Documents\\Playground\\LNKZ\\graphify-out\\graph.json"]
     },
-    "lnkz": {
+    "magnet": {
       "command": "node",
-      "args": ["C:\\path\\to\\lnkz-mcp\\dist\\stdio.js"],
-      "env": { "LNKZ_DB_FILE": "C:\\Users\\nsiri\\OneDrive\\Documents\\Playground\\LNKZ\\.data\\lnkz.db" }
+      "args": ["C:\\path\\to\\LNKZ\\dist\\magnet\\stdio.mjs"],
+      "env": { "MAGNET_DB_FILE": "C:\\Users\\nsiri\\OneDrive\\Documents\\Playground\\LNKZ\\.data\\magnet.db" }
     }
   }
 }
@@ -87,5 +88,5 @@ pip install graphify-mcp
 #   env: { "GRAPHIFY_PROJECT_DIR": "." }
 ```
 
-LNKZ does not depend on either one. Graphify is a development aid here, not a runtime
+Magnet does not depend on either one. Graphify is a development aid here, not a runtime
 dependency of the server.

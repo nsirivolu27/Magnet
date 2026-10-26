@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aggregateSearch } from "../src/lnkz/search.js";
-import type { Connector, ConnectorId, ContextItem } from "../src/lnkz/types.js";
+import { aggregateSearch } from "../src/magnet/search.js";
+import type { Connector, ConnectorId, ContextItem } from "../src/magnet/types.js";
 
 function connector(id: ConnectorId, items: ContextItem[] | Error): Connector {
   return {

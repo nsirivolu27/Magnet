@@ -35,7 +35,7 @@ visibility, and an owning publisher. The name is stable for the life of the
 package; everything a person sees can change between versions.
 
 **Version.** An immutable release of a package: semantic version, the
-configuration payload, a checksum, the scopes it requires, the LNKZ and MCP
+configuration payload, a checksum, the scopes it requires, the Magnet and MCP
 protocol versions it supports, a documentation URL, a source repository, and
 the date it was published. Immutable because an install records which version
 it took, and a version that can change makes that record meaningless.

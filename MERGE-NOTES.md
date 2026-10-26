@@ -1,4 +1,4 @@
-# MVP journey merge notes
+# Resolving the merge of claude/mvp-journey-v9 into feat/mvp-journey
 
 Eight files conflict. Keep both sides in every one of them. The changes are
 additive on both sides, not competing implementations. Do not take `--ours`
@@ -7,7 +7,7 @@ or `--theirs` wholesale on any file.
 This file describes what the incoming side changed and why, so the resolution
 is a union with understanding rather than a guess.
 
-## src/lnkz/schemas.ts
+## src/magnet/schemas.ts
 
 `continueConversationSchema` was split in two.
 
@@ -19,9 +19,9 @@ once already.
 `continueFromLinkSchema` is the new one, taking a `url` instead. Both must
 survive.
 
-## src/lnkz/server.ts
+## src/magnet/server.ts
 
-The handoff routes moved out to `src/lnkz/handoffs/wire.ts`, mounted through
+The handoff routes moved out to `src/magnet/handoffs/wire.ts`, mounted through
 `mountHandoffRoutes(app, store, deps)`. `server.ts` should end up about 124
 lines shorter, with one mount call where the routes used to be.
 
@@ -30,7 +30,7 @@ Separately: `import-url` with `dryRun` now calls `peekTransfer`, not
 redemption on the sending relay, so on a one-use link the preview succeeded
 and the import right after it failed.
 
-## src/lnkz/store/index.ts, sqlite.ts, postgres.ts
+## src/magnet/store/index.ts, sqlite.ts, postgres.ts
 
 `peekHandoff(token)` was added to the `ConversationStore` interface and
 implemented in both stores. It returns a `HandoffPeek`, never returns the
@@ -40,7 +40,7 @@ Both implementations must be present. An interface method implemented in one
 store and not the other typechecks and then fails at runtime on whichever
 store the deployment actually uses.
 
-## src/lnkz/mcp.ts
+## src/magnet/mcp.ts
 
 Two new tools: `preview_handoff` and `continue_from_link`.
 
@@ -48,7 +48,7 @@ Two new tools: `preview_handoff` and `continue_from_link`.
 REST route.
 
 The hand-assembled continuation lineage was replaced with a call to
-`localContinuation` from `src/lnkz/continuation.ts`. That was the third copy
+`localContinuation` from `src/magnet/continuation.ts`. That was the third copy
 of the same rules.
 
 ## apps/mobile/src/api.ts
@@ -90,8 +90,8 @@ appear after the word PASS.
 
 These should simply be present afterwards:
 
-- `src/lnkz/continuation.ts`
-- `src/lnkz/handoffs/wire.ts`
+- `src/magnet/continuation.ts`
+- `src/magnet/handoffs/wire.ts`
 - `tests/continuation.test.ts`
 - `tests/handoff-routes.test.ts`
 - `ENRICHMENT.md`

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { fetchTransfer, previewTransfer, isPublicAddress, safeUrl, TransferError } from "../src/lnkz/transfer.js";
-import { SqliteConversationStore } from "../src/lnkz/store/index.js";
+import { fetchTransfer, previewTransfer, isPublicAddress, safeUrl, TransferError } from "../src/magnet/transfer.js";
+import { SqliteConversationStore } from "../src/magnet/store/index.js";
 
-const LOCAL = { LNKZ_TRANSFER_ALLOW_PRIVATE: "true" } as NodeJS.ProcessEnv;
+const LOCAL = { MAGNET_TRANSFER_ALLOW_PRIVATE: "true" } as NodeJS.ProcessEnv;
 
 test("preview only requests metadata and never falls back to redeeming an unsupported link", async (t) => {
   const requests: string[] = [];
@@ -103,7 +103,7 @@ test("a transferred conversation records where it came from", async () => {
   }
 });
 
-test("a link that is not a LNKZ packet is refused rather than half-imported", async () => {
+test("a link that is not a Magnet packet is refused rather than half-imported", async () => {
   const origin = await serve(JSON.stringify({ hello: "world" }));
   try {
     await assert.rejects(() => fetchTransfer(origin.url, LOCAL), TransferError);

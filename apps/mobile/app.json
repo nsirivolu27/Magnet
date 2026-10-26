@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "LNKZ",
-    "slug": "lnkz-mobile",
+    "name": "Magnet",
+    "slug": "magnet-mobile",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#0A0610",
-    "scheme": "lnkz",
+    "backgroundColor": "#181818",
+    "scheme": ["magnet", "lnkz"],
     "experiments": {
       "baseUrl": "/mobile"
     },

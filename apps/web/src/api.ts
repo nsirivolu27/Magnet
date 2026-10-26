@@ -8,11 +8,16 @@ export interface ApiError extends Error {
   status: number;
 }
 
-const KEY_STORAGE = "lnkz.apiKey";
+const KEY_STORAGE = "magnet.apiKey";
+const LEGACY_KEY_STORAGE = "lnkz.apiKey";
 
 export function getApiKey(): string {
   try {
-    return sessionStorage.getItem(KEY_STORAGE) ?? "";
+    const current = sessionStorage.getItem(KEY_STORAGE);
+    if (current !== null) return current;
+    const legacy = sessionStorage.getItem(LEGACY_KEY_STORAGE) ?? "";
+    if (legacy) setApiKey(legacy);
+    return legacy;
   } catch {
     return "";
   }
@@ -22,6 +27,7 @@ export function setApiKey(value: string): void {
   try {
     if (value) sessionStorage.setItem(KEY_STORAGE, value);
     else sessionStorage.removeItem(KEY_STORAGE);
+    sessionStorage.removeItem(LEGACY_KEY_STORAGE);
   } catch {
     // Private-mode browsers refuse storage; the key still works for this page.
   }

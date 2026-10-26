@@ -10,9 +10,8 @@ kill_timeout = "30s"
   NODE_ENV = "production"
   HOST = "0.0.0.0"
   PORT = "3100"
-  LNKZ_DB_FILE = "/app/.data/lnkz.db"
-  LNKZ_MCP_API_KEY_REQUIRED = "true"
-  LNKZ_SHUTDOWN_TIMEOUT_MS = "25000"
+  MAGNET_MCP_API_KEY_REQUIRED = "true"
+  MAGNET_SHUTDOWN_TIMEOUT_MS = "25000"
 
 [mounts]
   source = "lnkz_data"

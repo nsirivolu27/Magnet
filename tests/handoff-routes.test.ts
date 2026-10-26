@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { AddressInfo } from "node:net";
 import express from "express";
-import { mountHandoffRoutes } from "../src/lnkz/handoffs/wire.js";
-import { SqliteConversationStore } from "../src/lnkz/store/index.js";
-import type { ConversationStore } from "../src/lnkz/store/index.js";
+import { mountHandoffRoutes } from "../src/magnet/handoffs/wire.js";
+import { SqliteConversationStore } from "../src/magnet/store/index.js";
+import type { ConversationStore } from "../src/magnet/store/index.js";
 
 /**
  * The handoff routes, exercised as routes.
@@ -24,7 +24,7 @@ import type { ConversationStore } from "../src/lnkz/store/index.js";
 // and it stays off everywhere that is not a developer's own machine. Set at
 // module scope because the routes read process.env when they dial, and each
 // test file runs in its own process.
-process.env.LNKZ_TRANSFER_ALLOW_PRIVATE = "true";
+process.env.MAGNET_TRANSFER_ALLOW_PRIVATE = "true";
 
 async function relay(): Promise<{ store: ConversationStore; base: string; close: () => Promise<void> }> {
   const store = new SqliteConversationStore(":memory:");

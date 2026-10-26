@@ -3,8 +3,8 @@ import test from "node:test";
 import { randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import express from "express";
-import { drainServer, readiness, requestLogging } from "../src/lnkz/operations.js";
-import { DEFAULT_WORKSPACE_ID } from "../src/lnkz/context.js";
+import { drainServer, readiness, requestLogging } from "../src/magnet/operations.js";
+import { DEFAULT_WORKSPACE_ID } from "../src/magnet/context.js";
 
 test("request logs omit secrets in headers, URLs, bodies and unmatched paths", async () => {
   const lines: string[] = [];

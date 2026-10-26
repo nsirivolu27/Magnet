@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { fetchTransfer } from "../src/lnkz/transfer.js";
-import { continueConversationSchema, continueFromLinkSchema } from "../src/lnkz/schemas.js";
-import { SqliteConversationStore } from "../src/lnkz/store/index.js";
-import type { ConversationStore } from "../src/lnkz/store/index.js";
+import { fetchTransfer } from "../src/magnet/transfer.js";
+import { continueConversationSchema, continueFromLinkSchema } from "../src/magnet/schemas.js";
+import { SqliteConversationStore } from "../src/magnet/store/index.js";
+import type { ConversationStore } from "../src/magnet/store/index.js";
 
-const LOCAL = { LNKZ_TRANSFER_ALLOW_PRIVATE: "true" } as NodeJS.ProcessEnv;
+const LOCAL = { MAGNET_TRANSFER_ALLOW_PRIVATE: "true" } as NodeJS.ProcessEnv;
 
 /**
  * transfer.test.ts covers one crossing: a link becomes a local conversation,
@@ -16,7 +16,7 @@ const LOCAL = { LNKZ_TRANSFER_ALLOW_PRIVATE: "true" } as NodeJS.ProcessEnv;
  *
  * Each instance is a store plus an HTTP server answering /share/:token off it,
  * the way server.ts does. Two of them on two ports is two people running their
- * own LNKZ, which is the topology the product is built for.
+ * own Magnet, which is the topology the product is built for.
  */
 async function instance(): Promise<{ store: ConversationStore; origin: string; close: () => Promise<void> }> {
   const store = new SqliteConversationStore(":memory:");

@@ -31,7 +31,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 
-const directory = await mkdtemp(join(tmpdir(), "lnkz-acceptance-"));
+const directory = await mkdtemp(join(tmpdir(), "magnet-acceptance-"));
 const running = [];
 let step = 0;
 let passed = false;
@@ -58,7 +58,7 @@ function pass(description) {
 }
 
 try {
-  console.log("LNKZ acceptance: a conversation crossing between two instances\n");
+  console.log("Magnet acceptance: a conversation crossing between two instances\n");
 
   // Both relays allow private addresses because both are on loopback here. In
   // production neither would, and transfer.ts refuses private destinations by
@@ -67,12 +67,12 @@ try {
   const b = await start("B");
   const clientFile = join(directory, "mobile-client.mjs");
   await build({ entryPoints: ["apps/mobile/src/api.ts"], outfile: clientFile, bundle: true, platform: "node", format: "esm" });
-  const { LnkzClient } = await import(pathToFileURL(clientFile).href);
-  const phoneA = new LnkzClient(a.base, a.key);
-  const phoneB = new LnkzClient(b.base, b.key);
+  const { MagnetClient } = await import(pathToFileURL(clientFile).href);
+  const phoneA = new MagnetClient(a.base, a.key);
+  const phoneB = new MagnetClient(b.base, b.key);
   await phoneA.checkConnection();
   await phoneB.checkConnection();
-  await assert.rejects(() => new LnkzClient(a.base, b.key).checkConnection(), /key was rejected/);
+  await assert.rejects(() => new MagnetClient(a.base, b.key).checkConnection(), /key was rejected/);
   pass("two relays are running on separate databases");
 
   // 1. A person saves a conversation from an LLM client.
@@ -317,7 +317,7 @@ async function start(name, port, key) {
   // set is not a run that passed.
   const env = { ...process.env };
   for (const variable of Object.keys(env)) {
-    if (/^(LNKZ_|DATABASE_|SLACK_|JIRA_|FIGMA_|DOCUMENT_FEED_|FANTASY_)/.test(variable)) delete env[variable];
+    if (/^(MAGNET_|LNKZ_|DATABASE_|SLACK_|JIRA_|FIGMA_|DOCUMENT_FEED_|FANTASY_)/.test(variable)) delete env[variable];
   }
 
   const child = spawn(process.execPath, ["dist/index.mjs"], {
@@ -326,14 +326,14 @@ async function start(name, port, key) {
       NODE_ENV: "production",
       HOST: "127.0.0.1",
       PORT: String(port),
-      LNKZ_API_KEY: key,
-      LNKZ_PUBLIC_BASE_URL: base,
-      LNKZ_DB_FILE: join(directory, `${name}.db`),
+      MAGNET_API_KEY: key,
+      MAGNET_PUBLIC_BASE_URL: base,
+      MAGNET_DB_FILE: join(directory, `${name}.db`),
       ALLOWED_HOSTS: "localhost,127.0.0.1",
       ALLOWED_ORIGINS: base,
       // Both instances are on loopback here. transfer.ts refuses private
       // destinations by default and that default stays untouched in production.
-      LNKZ_TRANSFER_ALLOW_PRIVATE: "true",
+      MAGNET_TRANSFER_ALLOW_PRIVATE: "true",
     },
     stdio: "ignore",
     windowsHide: true,

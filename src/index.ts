@@ -1,1 +1,1 @@
-import "./lnkz/server.js";
+import "./magnet/server.js";

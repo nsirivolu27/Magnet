@@ -38,13 +38,13 @@ after `pnpm build`. Choose unused data paths if you already have demo databases.
 Terminal A:
 
 ```bash
-NODE_ENV=development HOST=127.0.0.1 PORT=3100 LNKZ_ALLOW_UNAUTHENTICATED=true LNKZ_DB_FILE=.data/demo-a.db LNKZ_PUBLIC_BASE_URL=http://127.0.0.1:3100 pnpm start
+NODE_ENV=development HOST=127.0.0.1 PORT=3100 MAGNET_ALLOW_UNAUTHENTICATED=true MAGNET_DB_FILE=.data/demo-a.db MAGNET_PUBLIC_BASE_URL=http://127.0.0.1:3100 pnpm start
 ```
 
 Terminal B:
 
 ```bash
-NODE_ENV=development HOST=127.0.0.1 PORT=3101 LNKZ_ALLOW_UNAUTHENTICATED=true LNKZ_DB_FILE=.data/demo-b.db LNKZ_PUBLIC_BASE_URL=http://127.0.0.1:3101 LNKZ_TRANSFER_ALLOW_PRIVATE=true pnpm start
+NODE_ENV=development HOST=127.0.0.1 PORT=3101 MAGNET_ALLOW_UNAUTHENTICATED=true MAGNET_DB_FILE=.data/demo-b.db MAGNET_PUBLIC_BASE_URL=http://127.0.0.1:3101 MAGNET_TRANSFER_ALLOW_PRIVATE=true pnpm start
 ```
 
 Terminal C:

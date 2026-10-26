@@ -135,7 +135,7 @@ export function normalizeBaseUrl(value: string): string {
   try {
     parsed = new URL(trimmed);
   } catch {
-    throw new Error("Enter a complete server URL, such as https://lnkz.example.com.");
+    throw new Error("Enter a complete server URL, such as https://magnet.example.com.");
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("The server URL must use HTTP or HTTPS.");
@@ -153,14 +153,14 @@ function userMessage(status: number, payload: unknown): string {
     : "";
   if (status === 401) return "The API key was rejected. Check it and try again.";
   if (status === 403) return serverMessage || "This API key does not have permission for that action.";
-  if (status === 404) return serverMessage || "The requested LNKZ item was not found.";
+  if (status === 404) return serverMessage || "The requested Magnet item was not found.";
   if (status === 409) return serverMessage || "That change conflicts with the current server state.";
-  if (status === 429) return "LNKZ is receiving too many requests. Wait a moment and retry.";
-  if (status >= 500) return "The LNKZ server could not complete the request.";
+  if (status === 429) return "Magnet is receiving too many requests. Wait a moment and retry.";
+  if (status >= 500) return "The Magnet server could not complete the request.";
   return serverMessage || `The request failed (${status}).`;
 }
 
-export class LnkzClient {
+export class MagnetClient {
   readonly baseUrl: string;
 
   constructor(baseUrl: string, private readonly apiKey: string, private readonly timeoutMs = 30_000) {
@@ -183,7 +183,7 @@ export class LnkzClient {
         try {
           payload = JSON.parse(text);
         } catch {
-          if (response.ok) throw new ApiError("This URL returned a page instead of LNKZ data. Check the server URL.", response.status);
+          if (response.ok) throw new ApiError("This URL returned a page instead of Magnet data. Check the server URL.", response.status);
         }
       }
       if (!response.ok) throw new ApiError(userMessage(response.status, payload), response.status);
@@ -193,7 +193,7 @@ export class LnkzClient {
       if (error instanceof Error && error.name === "AbortError") {
         throw new Error("The server took too long to respond. After saving or receiving a conversation, check your library before trying again.");
       }
-      throw new Error("Could not reach the LNKZ server. Check the URL and your connection.");
+      throw new Error("Could not reach the Magnet server. Check the URL and your connection.");
     } finally {
       clearTimeout(timeout);
     }
@@ -221,6 +221,19 @@ export class LnkzClient {
 
   getConversation(id: string) {
     return this.request<{ conversation: Conversation; analysis: Analysis }>(`/api/conversations/${encodeURIComponent(id)}`);
+  }
+
+  createConversation(content: string) {
+    const message = content.trim();
+    if (!message) throw new Error("Write a message first.");
+    return this.request<{ conversation: Conversation }>("/api/conversations", {
+      method: "POST",
+      body: JSON.stringify({
+        title: message.replace(/\s+/g, " ").slice(0, 80),
+        source: { provider: "local", app: "Magnet" },
+        messages: [{ role: "user", content: message }],
+      }),
+    });
   }
 
   importText(payload: string, format = "auto", tags: string[] = []) {
@@ -311,7 +324,7 @@ export class LnkzClient {
   }
 
   /**
-   * Is this URL a LNKZ relay, and does this key work on it?
+   * Is this URL a Magnet relay, and does this key work on it?
    *
    * /ready is unauthenticated, so a failure there is the server or the URL. The
    * stats call that follows is authenticated, so a failure there is the key.
@@ -320,9 +333,9 @@ export class LnkzClient {
    */
   async checkConnection(): Promise<void> {
     const ready = await this.request<{ ok?: boolean }>("/ready", {}, false);
-    if (ready?.ok !== true) throw new Error("This URL is not a ready LNKZ relay.");
+    if (ready?.ok !== true) throw new Error("This URL is not a ready Magnet relay.");
     const result = await this.stats();
-    if (typeof result?.stats?.conversations !== "number") throw new Error("The server did not return LNKZ stats. Check the URL.");
+    if (typeof result?.stats?.conversations !== "number") throw new Error("The server did not return Magnet stats. Check the URL.");
   }
 }
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { localContinuation, remoteContinuation } from "../src/lnkz/continuation.js";
-import { SqliteConversationStore } from "../src/lnkz/store/index.js";
+import { localContinuation, remoteContinuation } from "../src/magnet/continuation.js";
+import { SqliteConversationStore } from "../src/magnet/store/index.js";
 
 const PARENT = {
   title: "Which store for the relay",

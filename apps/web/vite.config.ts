@@ -8,6 +8,8 @@ const api = "http://127.0.0.1:3100";
  * and behaves the same in a container as it does locally.
  */
 export default defineConfig({
+  // This app uses plain CSS; never inherit plugins from a parent checkout.
+  css: { postcss: { plugins: [] } },
   build: {
     target: "es2022",
     outDir: "../../dist/web",

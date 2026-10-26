@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { NextFunction, Request, Response } from "express";
-import { createApiKeyMiddleware } from "../src/lnkz/auth.js";
-import { loadConfig } from "../src/lnkz/config.js";
+import { createApiKeyMiddleware } from "../src/magnet/auth.js";
+import { loadConfig } from "../src/magnet/config.js";
 import {
   currentRequestContext,
   MCP_CONTEXT_HEADER,
@@ -11,7 +11,7 @@ import {
   signMcpContext,
   verifyMcpContext,
   type RequestContext,
-} from "../src/lnkz/context.js";
+} from "../src/magnet/context.js";
 
 const SECRET = "test-only-context-secret-with-32-bytes-minimum";
 const WORKSPACE_ID = "10000000-0000-4000-8000-000000000001";
@@ -118,7 +118,7 @@ test("a managed context takes precedence over forwarded headers", () => {
 
 test("plain workspace headers never establish request context", () => {
   const result = invoke(forwardingMiddleware(), {
-    "x-lnkz-workspace": WORKSPACE_ID,
+    "x-magnet-workspace": WORKSPACE_ID,
     "x-workspace-id": WORKSPACE_ID,
   });
   assert.equal(result.status, 401);
@@ -128,7 +128,7 @@ test("plain workspace headers never establish request context", () => {
 test("production auth fails closed and context secrets must be strong", () => {
   assert.throws(() => loadConfig({ NODE_ENV: "production" } as NodeJS.ProcessEnv), /Authentication is required/);
   assert.throws(
-    () => loadConfig({ NODE_ENV: "development", LNKZ_MCP_CONTEXT_SECRET: "short" } as NodeJS.ProcessEnv),
+    () => loadConfig({ NODE_ENV: "development", MAGNET_MCP_CONTEXT_SECRET: "short" } as NodeJS.ProcessEnv),
     /at least 32 bytes/,
   );
 });

@@ -1,24 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createOriginValidator, isOriginAllowed, rateLimit, withLoopback } from "../src/lnkz/auth.js";
+import { createOriginValidator, isOriginAllowed, rateLimit, withLoopback } from "../src/magnet/auth.js";
 
 test("same-origin web assets work without weakening the origin allowlist", () => {
   assert.equal(isOriginAllowed("http://127.0.0.1:3100", "127.0.0.1:3100", []), true);
-  assert.equal(isOriginAllowed("https://app.example", "lnkz.example", ["https://app.example"]), true);
-  assert.equal(isOriginAllowed("https://evil.example", "lnkz.example", ["https://app.example"]), false);
-  assert.equal(isOriginAllowed("not a url", "lnkz.example", []), false);
+  assert.equal(isOriginAllowed("https://app.example", "magnet.example", ["https://app.example"]), true);
+  assert.equal(isOriginAllowed("https://evil.example", "magnet.example", ["https://app.example"]), false);
+  assert.equal(isOriginAllowed("not a url", "magnet.example", []), false);
 });
 
 test("an allowed mobile web origin receives CORS headers and completes preflight", () => {
-  const middleware = createOriginValidator(["https://lnkz-mobile.example"]);
+  const middleware = createOriginValidator(["https://magnet-mobile.example"]);
   const headers = new Map<string, unknown>();
   let status = 0;
   let nextCalls = 0;
   const request = {
     method: "OPTIONS",
     header: (name: string) => name.toLowerCase() === "origin"
-      ? "https://lnkz-mobile.example"
-      : "lnkz-api.example",
+      ? "https://magnet-mobile.example"
+      : "magnet-api.example",
   } as never;
   const response = {
     vary: (name: string) => { headers.set("vary", name); },
@@ -31,12 +31,12 @@ test("an allowed mobile web origin receives CORS headers and completes preflight
   assert.equal(status, 204);
   assert.equal(nextCalls, 0);
   assert.equal(headers.get("vary"), "Origin");
-  assert.equal(headers.get("access-control-allow-origin"), "https://lnkz-mobile.example");
+  assert.equal(headers.get("access-control-allow-origin"), "https://magnet-mobile.example");
   assert.match(String(headers.get("access-control-allow-headers")), /Authorization/);
 });
 
 test("a rejected browser origin receives no CORS access", () => {
-  const middleware = createOriginValidator(["https://lnkz-mobile.example"]);
+  const middleware = createOriginValidator(["https://magnet-mobile.example"]);
   const headers = new Map<string, unknown>();
   let status = 0;
   let body: unknown;
@@ -45,7 +45,7 @@ test("a rejected browser origin receives no CORS access", () => {
     method: "GET",
     header: (name: string) => name.toLowerCase() === "origin"
       ? "https://evil.example"
-      : "lnkz-api.example",
+      : "magnet-api.example",
   } as never;
   const response = {
     vary: () => undefined,
@@ -92,8 +92,8 @@ test("a limiter configured with max 0 is disabled rather than blocking everythin
 });
 
 test("loopback hosts stay allowed so a container health check is not rejected", () => {
-  const hosts = withLoopback(["lnkz.fly.dev"], 3100);
-  assert.ok(hosts.includes("lnkz.fly.dev"));
+  const hosts = withLoopback(["magnet.fly.dev"], 3100);
+  assert.ok(hosts.includes("magnet.fly.dev"));
   assert.ok(hosts.includes("127.0.0.1:3100"), "the in-container health check sends this Host");
   assert.ok(hosts.includes("localhost"));
   assert.equal(hosts.includes("evil.example"), false);
