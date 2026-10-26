@@ -19,8 +19,12 @@ try {
   docker(["run", "-d", "--name", name, "-p", "127.0.0.1::3100", "--mount", `type=volume,src=${volume},dst=/app/.data`,
     "-e", "MAGNET_API_KEY", "-e", "ALLOWED_HOSTS=localhost,127.0.0.1", image],
     { env: { ...process.env, MAGNET_API_KEY: key } });
-  const binding = JSON.parse(docker(["inspect", name]))[0].NetworkSettings.Ports["3100/tcp"][0];
-  const base = `http://127.0.0.1:${binding.HostPort}`;
+  function containerBaseUrl() {
+    const binding = JSON.parse(docker(["inspect", name]))[0].NetworkSettings.Ports["3100/tcp"][0];
+    assert.match(binding.HostPort, /^\d+$/);
+    return `http://127.0.0.1:${binding.HostPort}`;
+  }
+  let base = containerBaseUrl();
   async function ready() {
     for (let attempt = 0; attempt < 120; attempt++) {
       try { if ((await fetch(base + "/ready", { signal: AbortSignal.timeout(1000) })).ok) return; } catch {}
@@ -58,6 +62,8 @@ try {
   assert.equal((await fetch(base + `/share/${link.token}`)).status, 200);
   assert.equal((await fetch(base + `/share/${link.token}`)).status, 404);
   docker(["restart", "--time", "30", name]);
+  // Docker can allocate a new ephemeral host port when restarting the container.
+  base = containerBaseUrl();
   await ready();
   assert.equal((await api(`/api/conversations/${id}`)).conversation.id, id);
   assert.equal((await fetch(base + `/share/${link.token}`)).status, 404, "spent use persists across restart");
