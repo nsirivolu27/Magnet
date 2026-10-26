@@ -5,7 +5,7 @@ import { importGeneric, looksLikeGeneric } from "./generic.js";
 import { importMagnet, looksLikeMagnet } from "./magnet.js";
 import { importMarkdown } from "./markdown.js";
 import { importOpenAi, looksLikeOpenAi } from "./openai.js";
-import { importPlainText } from "./plain.js";
+import { hasPlainSpeakerLabels, importPlainText } from "./plain.js";
 import type { ConversationInput } from "../types.js";
 
 export type ImportFormat =
@@ -72,7 +72,7 @@ export function detectFormat(payload: string): Exclude<ImportFormat, "auto"> {
     if (looksLikeGeneric(parsed)) return "generic";
     return "text";
   }
-  return looksLikeMarkdown(payload) ? "markdown" : "text";
+  return hasPlainSpeakerLabels(payload) ? "text" : looksLikeMarkdown(payload) ? "markdown" : "text";
 }
 
 /** Every format Magnet can be asked for explicitly, for a client building a picker. */

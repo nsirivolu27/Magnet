@@ -1,3 +1,13 @@
+/** Accept human reader links without changing the relay's raw transfer contract. */
+export function transferUrl(value: string): string {
+  const url = new URL(value);
+  if (url.pathname === "/receive.html" && /^#[A-Za-z0-9_-]+$/.test(url.hash)) {
+    url.pathname = `/share/${url.hash.slice(1)}`;
+    url.hash = "";
+  }
+  return url.href;
+}
+
 export interface ConversationSummary {
   id: string;
   title: string;
@@ -243,6 +253,16 @@ export class MagnetClient {
     );
   }
 
+  previewText(payload: string) {
+    return this.request<{ warnings: string[]; preview: { title: string; provider: string; messages: number }[] }>(
+      "/api/conversations/import", { method: "POST", body: JSON.stringify({ payload, format: "auto", dryRun: true }) },
+    );
+  }
+
+  continuationText(id: string) {
+    return this.request<{ text: string; messageCount: number }>(`/api/conversations/${encodeURIComponent(id)}/context`);
+  }
+
   buildPacket(conversationIds: string[], budgetTokens = 4_000) {
     return this.request<{ packet: Packet }>("/api/context/packet", {
       method: "POST",
@@ -275,7 +295,7 @@ export class MagnetClient {
   previewLink(url: string) {
     return this.request<ImportPreview>("/api/conversations/import-url", {
       method: "POST",
-      body: JSON.stringify({ url, dryRun: true }),
+      body: JSON.stringify({ url: transferUrl(url), dryRun: true }),
     });
   }
 
@@ -283,7 +303,7 @@ export class MagnetClient {
   importLink(url: string, tags: string[] = []) {
     return this.request<{ conversation: Conversation; origin: TransferOrigin; warnings: string[] }>(
       "/api/conversations/import-url",
-      { method: "POST", body: JSON.stringify({ url, tags, dryRun: false }) },
+      { method: "POST", body: JSON.stringify({ url: transferUrl(url), tags, dryRun: false }) },
     );
   }
 
@@ -301,7 +321,7 @@ export class MagnetClient {
       {
         method: "POST",
         body: JSON.stringify({
-          url: input.url,
+          url: transferUrl(input.url),
           provider: input.provider,
           app: input.app,
           title: input.title,
