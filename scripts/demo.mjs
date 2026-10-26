@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
 
-const directory = await mkdtemp(join(tmpdir(), "lnkz-demo-"));
+const directory = await mkdtemp(join(tmpdir(), "magnet-demo-"));
 const services = [];
 const recording = [];
 const started = performance.now();
@@ -42,7 +42,7 @@ try {
   show(continued.conversation.messages.at(-1).content);
   show("Done: the context and its origin are now stored on B.");
   if (process.argv.includes("--record")) {
-    await writeFile("docs/demo.cast", [JSON.stringify({ version: 2, width: 120, height: 28, title: "LNKZ: save, handoff, continue" }), ...recording.map((event) => JSON.stringify(event))].join("\n") + "\n");
+    await writeFile("docs/demo.cast", [JSON.stringify({ version: 2, width: 120, height: 28, title: "Magnet: save, handoff, continue" }), ...recording.map((event) => JSON.stringify(event))].join("\n") + "\n");
     await writeFile("docs/demo-output.txt", recording.map((event) => event[2].trimEnd()).join("\n") + "\n");
   }
 } catch {
@@ -64,13 +64,13 @@ async function start(name, allowPrivate) {
   const base = `http://127.0.0.1:${port}`;
   const env = { ...process.env };
   for (const variable of Object.keys(env)) {
-    if (/^(LNKZ_|DATABASE_|SLACK_|JIRA_|FIGMA_|DOCUMENT_FEED_|FANTASY_)/.test(variable)) delete env[variable];
+    if (/^(MAGNET_|LNKZ_|DATABASE_|SLACK_|JIRA_|FIGMA_|DOCUMENT_FEED_|FANTASY_)/.test(variable)) delete env[variable];
   }
   const child = spawn(process.execPath, ["dist/index.mjs"], {
     env: { ...env, NODE_ENV: "production", HOST: "127.0.0.1", PORT: String(port),
-      LNKZ_API_KEY: key, LNKZ_PUBLIC_BASE_URL: base, LNKZ_DB_FILE: join(directory, `${name}.db`),
+      MAGNET_API_KEY: key, MAGNET_PUBLIC_BASE_URL: base, MAGNET_DB_FILE: join(directory, `${name}.db`),
       ALLOWED_HOSTS: "localhost,127.0.0.1", ALLOWED_ORIGINS: base,
-      LNKZ_TRANSFER_ALLOW_PRIVATE: String(allowPrivate) },
+      MAGNET_TRANSFER_ALLOW_PRIVATE: String(allowPrivate) },
     stdio: "ignore", windowsHide: true,
   });
   const service = { child, key, base };

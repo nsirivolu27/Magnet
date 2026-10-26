@@ -1,4 +1,4 @@
-# Working on LNKZ
+# Working on Magnet
 
 Use [CONTRIBUTING.md](CONTRIBUTING.md) for checks and review expectations.
 Architecture boundaries are in [ARCHITECTURE.md](ARCHITECTURE.md).

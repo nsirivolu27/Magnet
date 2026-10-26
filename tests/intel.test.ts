@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeConversation, approxTokens } from "../src/lnkz/intel/analyze.js";
-import { detectConflicts, detectDuplicates } from "../src/lnkz/intel/conflict.js";
-import { buildContextPacket } from "../src/lnkz/intel/packet.js";
-import { redactConversation, redactText } from "../src/lnkz/intel/redact.js";
-import { textSimilarity } from "../src/lnkz/intel/similarity.js";
-import { SqliteConversationStore } from "../src/lnkz/store/index.js";
-import type { Conversation } from "../src/lnkz/types.js";
+import { analyzeConversation, approxTokens } from "../src/magnet/intel/analyze.js";
+import { detectConflicts, detectDuplicates } from "../src/magnet/intel/conflict.js";
+import { buildContextPacket } from "../src/magnet/intel/packet.js";
+import { redactConversation, redactText } from "../src/magnet/intel/redact.js";
+import { textSimilarity } from "../src/magnet/intel/similarity.js";
+import { SqliteConversationStore } from "../src/magnet/store/index.js";
+import type { Conversation } from "../src/magnet/types.js";
 
 function conversation(id: string, title: string, contents: string[]): Conversation {
   return {
@@ -127,7 +127,7 @@ test("a context packet respects its token budget and reports what it used", asyn
   assert.equal(packet.conversations.length, 1);
   assert.ok(packet.usedTokens <= packet.budgetTokens, `used ${packet.usedTokens} of ${packet.budgetTokens}`);
   assert.ok(packet.conversations[0].decisions.some((text) => text.includes("staged rollout")));
-  assert.ok(packet.markdown.includes("# LNKZ context packet"));
+  assert.ok(packet.markdown.includes("# Magnet context packet"));
   assert.ok(approxTokens(packet.markdown) < packet.budgetTokens * 2);
 });
 

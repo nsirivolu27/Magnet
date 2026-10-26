@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EXPORT_FORMATS, REIMPORTABLE_FORMATS, exportConversation, toOpenAi } from "../src/lnkz/export/index.js";
-import { detectFormat, importConversations } from "../src/lnkz/import/index.js";
-import type { Conversation } from "../src/lnkz/types.js";
+import { EXPORT_FORMATS, REIMPORTABLE_FORMATS, exportConversation, toOpenAi } from "../src/magnet/export/index.js";
+import { detectFormat, importConversations } from "../src/magnet/import/index.js";
+import type { Conversation } from "../src/magnet/types.js";
 
 function conversation(): Conversation {
   return {

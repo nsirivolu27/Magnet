@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { executePublish, isPublishAllowed, publishAllowlist } from "../src/lnkz/publish/execute.js";
-import type { RemoteCaller } from "../src/lnkz/publish/execute.js";
-import { SqliteConversationStore } from "../src/lnkz/store/index.js";
-import type { ConversationStore } from "../src/lnkz/store/index.js";
-import type { RemoteTool } from "../src/lnkz/publish/prepare.js";
+import { executePublish, isPublishAllowed, publishAllowlist } from "../src/magnet/publish/execute.js";
+import type { RemoteCaller } from "../src/magnet/publish/execute.js";
+import { SqliteConversationStore } from "../src/magnet/store/index.js";
+import type { ConversationStore } from "../src/magnet/store/index.js";
+import type { RemoteTool } from "../src/magnet/publish/prepare.js";
 
 const TARGET = { name: "jira", url: "https://jira.example.com/mcp" };
 
@@ -72,7 +72,7 @@ test("nothing publishes without an allowlist, in any environment", async () => {
 
     assert.equal(result.outcome, "refused");
     assert.equal(result.sent, false);
-    assert.match(result.reason ?? "", /LNKZ_PUBLISH_ALLOWLIST/);
+    assert.match(result.reason ?? "", /MAGNET_PUBLISH_ALLOWLIST/);
     assert.equal(calls.length, 0, "a refused publish still reached the target");
   });
 });
@@ -80,14 +80,14 @@ test("nothing publishes without an allowlist, in any environment", async () => {
 test("the allowlist is per tool, not per target", async () => {
   // Allowing a target wholesale would mean allowing every write it grows
   // later, including ones that did not exist when the operator decided.
-  const env = { LNKZ_PUBLISH_ALLOWLIST: "jira:create_issue" };
+  const env = { MAGNET_PUBLISH_ALLOWLIST: "jira:create_issue" };
   assert.equal(isPublishAllowed("jira", "create_issue", env), true);
   assert.equal(isPublishAllowed("jira", "delete_issue", env), false);
   assert.equal(isPublishAllowed("slack", "create_issue", env), false);
 
   // Case and separator tolerance, because this is typed by hand into a
   // deployment config and a capital letter should not silently disable a rule.
-  const messy = { LNKZ_PUBLISH_ALLOWLIST: "  Jira:Create_Issue ,\n slack:post_message  " };
+  const messy = { MAGNET_PUBLISH_ALLOWLIST: "  Jira:Create_Issue ,\n slack:post_message  " };
   assert.equal(isPublishAllowed("jira", "create_issue", messy), true);
   assert.equal(isPublishAllowed("slack", "post_message", messy), true);
 });
@@ -100,7 +100,7 @@ test("an allowed publish sends, redacted, and records what it did without the pa
     const result = await executePublish(store, {
       conversation, target: TARGET, tool: TOOL,
       overrides: { project: "REL" },
-    }, caller, { LNKZ_PUBLISH_ALLOWLIST: "jira:create_issue" });
+    }, caller, { MAGNET_PUBLISH_ALLOWLIST: "jira:create_issue" });
 
     assert.equal(result.outcome, "sent");
     assert.equal(result.sent, true);
@@ -108,7 +108,7 @@ test("an allowed publish sends, redacted, and records what it did without the pa
     assert.equal(calls[0]?.tool, "create_issue");
 
     // Redaction is on by default and runs before the call, because the packet
-    // is going somewhere LNKZ cannot delete from.
+    // is going somewhere Magnet cannot delete from.
     assert.equal(result.redacted, true);
     assert.equal(JSON.stringify(calls[0]?.args).includes(PLANTED), false, "the planted credential was sent to the target");
 
@@ -135,7 +135,7 @@ test("a refusal and a failure are both recorded, not only success", async () => 
   // An audit log holding only successes answers the wrong question.
   await withStore(async (store) => {
     const conversation = await saved(store);
-    const env = { LNKZ_PUBLISH_ALLOWLIST: "jira:create_issue" };
+    const env = { MAGNET_PUBLISH_ALLOWLIST: "jira:create_issue" };
 
     await executePublish(store, {
       conversation, target: TARGET, tool: TOOL, overrides: { project: "REL" },
@@ -165,7 +165,7 @@ test("a required field the mapping could not fill refuses before the call", asyn
 
     const result = await executePublish(store, {
       conversation, target: TARGET, tool: TOOL,
-    }, caller, { LNKZ_PUBLISH_ALLOWLIST: "jira:create_issue" });
+    }, caller, { MAGNET_PUBLISH_ALLOWLIST: "jira:create_issue" });
 
     assert.equal(result.outcome, "refused");
     assert.match(result.reason ?? "", /project/);
@@ -182,7 +182,7 @@ test("redaction can be turned off, and the result says so", async () => {
       conversation, target: TARGET, tool: TOOL,
       overrides: { project: "REL" },
       redact: false,
-    }, caller, { LNKZ_PUBLISH_ALLOWLIST: "jira:create_issue" });
+    }, caller, { MAGNET_PUBLISH_ALLOWLIST: "jira:create_issue" });
 
     assert.equal(result.redacted, false);
     const event = (await store.listEvents(20)).find((entry) => entry.kind === "publish.sent");

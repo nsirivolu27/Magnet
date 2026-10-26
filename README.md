@@ -1,92 +1,110 @@
-# LNKZ
+# Magnet
 
-**Create with AI anywhere. Share privately through LNKZ.**
+**Keep the conversation. Share what matters.**
 
-LNKZ's MVP is an end-to-end encrypted messenger for AI-created content and its context: messages,
-conversations, images, videos, audio, documents and links sent to people, apps,
-AI platforms or other receiving systems. Workspaces remain separate.
+Magnet brings AI conversations into one place so you can save them, add your own
+messages, and pass them to another person or device without losing the context.
+It has a simple black-and-white chat interface for mobile and the web.
 
-**Encryption status: not implemented.** The current relay can read stored
-conversations. API keys, HTTPS and expiring links do not make it E2EE. The new
-messenger requires device-side encryption and recipient-held keys before it can
-be described as end-to-end encrypted.
+## What you can do today
 
-**Implemented foundation:** LNKZ currently saves text conversations, extracts
-decisions with source messages, and transfers context through expiring handoff
-links. It runs on your machine or server. General media sharing, recipient inboxes
-and consumer onboarding are planned MVP work, not completed features.
+- **Start a conversation.** Write a message and keep adding to the same thread.
+- **Bring an existing chat.** Paste a ChatGPT, Claude, or Gemini export, Markdown,
+  JSON, or plain text. Magnet preserves the message order.
+- **Find what you saved.** Browse recent conversations or search your history.
+- **Share a conversation.** Create a link with an expiration and a use limit,
+  optionally filter common sensitive text, and revoke access when needed.
+- **Pick up where someone left off.** Preview a shared link without using it up,
+  keep a copy, or continue it with a new message. The conversation keeps its origin.
 
-Files, pasted text and links are the universal fallback; direct platform delivery
-and continuation require supported integrations. See [ROADMAP.md](ROADMAP.md)
-for the revised user flow, acceptance gate and build order.
+The current app stores and shares conversations. It does **not** generate AI
+replies or automatically send messages into every AI platform.
 
-This is the home of the combined LNKZ and LLMM project: the relay, web landing
-page, console, and deployment code are maintained together as **LNKZ**.
+## Try the app locally
 
-## Run it locally
-
-Use Node 22 and the pinned pnpm version:
+Install Node.js 22.16 or newer and use the package manager pinned in this repository:
 
 ```bash
-git clone https://github.com/nsirivolu27/LNKZ.git
-cd LNKZ
+git clone https://github.com/nsirivolu27/Magnet.git
+cd Magnet
 corepack enable
 corepack pnpm install --frozen-lockfile
-pnpm build
-pnpm demo
+corepack pnpm build
+corepack pnpm build:mobile
+corepack pnpm dev:devices 127.0.0.1
 ```
 
-The demo starts two temporary local instances, seeds A, asks what the forecast
-model decision was, hands a conversation to B, and continues it there. It prints
-real decisions and origin lineage, then closes both instances. No model or
-provider account is needed. It uses synthetic data and removes its temporary stores.
+Open [Magnet A](http://127.0.0.1:3101/mobile/) and
+[Magnet B](http://127.0.0.1:3102/mobile/). The command starts two separate local
+instances and saves their connection keys in `.data/two-devices/connections.json`.
+Enter the matching key on each connection screen. Keep that file private.
+Your conversations persist when you stop and restart the command.
 
-Read the [recorded terminal output](docs/demo-output.txt) without installing
-anything, or play the [terminal recording](docs/demo.cast) with an asciicast
-player. [DEMO.md](DEMO.md) gives the same transfer as explicit commands.
+1. Write or import a conversation in A.
+2. Open **Share**, create a link, and copy it.
+3. In B, open **Import or receive**, paste the link, and preview it.
+4. Keep a copy or continue the conversation, then share it back to A.
 
-To keep your own local store, run `pnpm start` and open
-[the LNKZ console](http://127.0.0.1:3100/console.html). The landing page is at
-[http://127.0.0.1:3100](http://127.0.0.1:3100). In another terminal:
+For two physical devices, use your computer's LAN address instead of `127.0.0.1`
+and follow [the two-device guide](docs/TWO_DEVICES.md). The local HTTP setup is
+for trusted-network testing. A public installation needs HTTPS and authentication.
+
+## Privacy and current limits
+
+**End-to-end encryption is not implemented yet.** The current server can read
+stored conversations. Access keys and expiring links are access controls, not E2EE.
+Anyone holding a valid share link can use it; an audience label is not recipient
+verification. Review content before sharing, even when filtering is enabled.
+
+The planned messenger adds recipient accounts, device-held encryption keys,
+encrypted media and file delivery, and supported platform integrations. Video,
+image, and audio messaging are not available in this version. See the
+[roadmap](ROADMAP.md) for the remaining work.
+
+Magnet is the sharing app. The separate Magentic product owns the MCP adapter
+and marketplace work; those are not required to use Magnet's interface.
+
+## Run your own installation
+
+The same server serves the mobile web app at `/mobile/`, the web console at
+`/console.html`, and the API. SQLite is the default local store; PostgreSQL is
+available for deployments that need it.
 
 ```bash
-pnpm seed
-pnpm ask "forecast model"
+corepack pnpm build:release
+corepack pnpm verify:release
 ```
 
-The answer includes the original gradient-boosting decision and its later
-reversal to a seasonal ARIMA baseline. Connect your model using
-[MCP.md](MCP.md#claude-desktop-setup). For public use, follow [DEPLOY.md](DEPLOY.md).
+This creates `artifacts/magnet-0.2.0.tgz` and its SHA-256 checksum. The archive
+contains the server, web app, mobile web app, migrations, and maintenance scripts.
+It runs without installing runtime dependencies. See [deployment instructions](DEPLOY.md)
+for credentials, HTTPS, persistent storage, Docker, and optional AWS infrastructure.
 
-## Read next
+Native Android and iOS build profiles are in `apps/mobile/eas.json`; signed native
+builds and app-store releases still require setup. A mobile web build is not proof
+of a tested native release.
 
-| Document | Its job |
-| --- | --- |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Components, data flow, storage and trust boundaries |
-| [MCP.md](MCP.md) | Tool, resource, prompt and REST contracts; MCP client setup |
-| [DEPLOY.md](DEPLOY.md) | Configuration, hosting and operational commands |
-| [ROADMAP.md](ROADMAP.md) | Remaining work and scope boundaries |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Local checks, review and branch protection |
-| [CHANGELOG.md](CHANGELOG.md) | Changes over time |
-| [SECURITY.md](SECURITY.md) | Private vulnerability disclosure |
+## Development
 
-## Related repositories
+The app uses React Native and Expo, with a TypeScript/Node.js backend. The web
+console uses Vite. One pnpm workspace covers the application and infrastructure.
 
-| Repository | What it owns |
-| --- | --- |
-| This repository | LNKZ: the relay, REST and MCP surfaces, web app, and deployment assets |
-| [LLMM](https://github.com/nsirivolu27/LLMM) | The original source repository; its product code and history are consolidated here |
-| [lnkz-mcp](https://github.com/nsirivolu27/lnkz-mcp) | A standalone MCP adapter for a remotely hosted relay |
+```bash
+corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm verify:web
+corepack pnpm verify:http
+corepack pnpm verify:journey
+```
+
+Run the builds above before the verification commands. The journey check exercises
+conversation sharing between two independent local servers; it does not replace
+testing on physical phones.
+
+- [Mobile development](apps/mobile/README.md)
+- [Architecture](ARCHITECTURE.md) and [API reference](REST.md)
+- [Optional MCP client setup](MCP.md)
+- [Contributing](CONTRIBUTING.md) and [security reporting](SECURITY.md)
+- [Upgrading from LNKZ](docs/MAGNET-RENAME.md)
 
 Licensed under [MIT](LICENSE).
-
-## Working on the combined product
-
-The relay stays in `src/lnkz`, the Vite app lives in `apps/web`, and optional AWS
-infrastructure lives in `infra`. One pnpm workspace and lockfile cover all three.
-`pnpm build` produces the server and web assets in `dist`; `pnpm start` serves
-both from port 3100. For frontend development, keep the relay running and use
-`pnpm dev:web` for Vite's live updates on port 5173.
-
-See [the consolidation record](docs/consolidation.md) for source history and
-the disposition of LLMM's duplicate packages.

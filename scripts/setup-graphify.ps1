@@ -1,10 +1,10 @@
 <#
-  Registers Graphify and LNKZ as MCP servers for the Claude desktop app.
+  Registers Graphify and Magnet as MCP servers for the Claude desktop app.
 
   Claude's config lives in a protected AppData folder, so this has to run on the
   machine itself:
 
-      powershell -ExecutionPolicy Bypass -File scripts\setup-graphify.ps1
+      pwsh -ExecutionPolicy Bypass -File scripts\setup-graphify.ps1
 
   Existing servers in the config are preserved; only the two entries below are
   added or replaced. Restart the Claude desktop app afterwards.
@@ -41,10 +41,16 @@ $config["mcpServers"]["graphify"] = @{
   args    = @("-m", "graphify.serve", $graphPath)
 }
 
-$config["mcpServers"]["lnkz"] = @{
+$databasePath = Join-Path $repo ".data\magnet.db"
+$legacyDatabasePath = Join-Path $repo ".data\lnkz.db"
+if (-not (Test-Path $databasePath) -and (Test-Path $legacyDatabasePath)) {
+  $databasePath = $legacyDatabasePath
+}
+
+$config["mcpServers"]["magnet"] = @{
   command = "node"
-  args    = @((Join-Path $repo "lnkz-mcp\dist\stdio.js"))
-  env     = @{ LNKZ_DB_FILE = (Join-Path $repo ".data\lnkz.db") }
+  args    = @((Join-Path $repo "dist\magnet\stdio.mjs"))
+  env     = @{ MAGNET_DB_FILE = $databasePath }
 }
 
 Copy-Item $configPath "$configPath.bak" -ErrorAction SilentlyContinue

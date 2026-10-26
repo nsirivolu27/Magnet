@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { looksLikeWrite, prepareCall, renderBody, type RemoteTool } from "../src/lnkz/publish/prepare.js";
-import { configuredTargets, discoverTools, findTool } from "../src/lnkz/publish/targets.js";
-import type { Conversation } from "../src/lnkz/types.js";
+import { looksLikeWrite, prepareCall, renderBody, type RemoteTool } from "../src/magnet/publish/prepare.js";
+import { configuredTargets, discoverTools, findTool } from "../src/magnet/publish/targets.js";
+import type { Conversation } from "../src/magnet/types.js";
 
 function conversation(): Conversation {
   return {
@@ -44,7 +44,7 @@ const createIssue: RemoteTool = {
 
 test("target configuration parses name=url and name=url|key", () => {
   const { targets, errors } = configuredTargets({
-    LNKZ_MCP_TARGETS: "jira=https://jira.example/mcp|secret, notes=http://localhost:9000/mcp",
+    MAGNET_MCP_TARGETS: "jira=https://jira.example/mcp|secret, notes=http://localhost:9000/mcp",
   } as NodeJS.ProcessEnv);
 
   assert.deepEqual(targets.map((target) => target.name), ["jira", "notes"]);
@@ -55,7 +55,7 @@ test("target configuration parses name=url and name=url|key", () => {
 
 test("a malformed target is reported and skipped rather than guessed at", () => {
   const { targets, errors } = configuredTargets({
-    LNKZ_MCP_TARGETS: "broken, bad=notaurl, ftp=ftp://files.example/mcp, ok=https://good.example/mcp",
+    MAGNET_MCP_TARGETS: "broken, bad=notaurl, ftp=ftp://files.example/mcp, ok=https://good.example/mcp",
   } as NodeJS.ProcessEnv);
 
   assert.deepEqual(targets.map((target) => target.name), ["ok"]);

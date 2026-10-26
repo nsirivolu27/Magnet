@@ -39,10 +39,10 @@ selectTab("import");
 function shell(): string {
   return `
 <header class="console-header">
-  <a class="brand" href="/"><span class="brand-mark">${icon("link", 19)}</span><span>LNKZ</span></a>
+  <a class="brand" href="/"><span class="brand-mark">${icon("link", 19)}</span><span>Magnet</span></a>
   <div class="key-field">
     <label for="api-key">API key</label>
-    <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="LNKZ_API_KEY (leave blank if unset)" />
+    <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="MAGNET_API_KEY (leave blank if unset)" />
   </div>
 </header>
 <nav class="console-tabs">
@@ -71,7 +71,7 @@ function renderImport(): void {
 <section class="card">
   <h2>Bring a conversation in</h2>
   <p class="hint">
-    Paste a ChatGPT, Claude, or Gemini export, a LNKZ packet, a Markdown transcript, or a plain copied chat.
+    Paste a ChatGPT, Claude, or Gemini export, a Magnet packet, a Markdown transcript, or a plain copied chat.
     Run it as a preview first if you are not sure what the file is.
   </p>
   <div class="row">
@@ -81,7 +81,7 @@ function renderImport(): void {
         <option value="chatgpt">ChatGPT export</option>
         <option value="claude">Claude export</option>
         <option value="gemini">Gemini</option>
-        <option value="lnkz">LNKZ packet</option>
+        <option value="magnet">Magnet packet</option>
         <option value="markdown">Markdown transcript</option>
         <option value="text">Plain text</option>
       </select>

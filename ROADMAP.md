@@ -1,18 +1,18 @@
-# LNKZ roadmap
+# Magnet roadmap
 
 ## MVP: an end-to-end encrypted messenger for AI content
 
-LNKZ lets someone take AI-created content and its relevant context from a source
+Magnet lets someone take AI-created content and its relevant context from a source
 platform and share it with a receiver: another person, an app, an AI platform,
 or another receiving system. Conversation handoffs are one supported content
 flow within this product, not the limit of the product.
 
-**Product promise:** create anywhere, share privately through LNKZ, receive and
-continue where it is useful. LNKZ is a messenger, with end-to-end encrypted
+**Product promise:** create anywhere, share privately through Magnet, receive and
+continue where it is useful. Magnet is a messenger, with end-to-end encrypted
 one-to-one conversations as the first release, not a public file-sharing portal.
 
 Messages, AI context and attachments must be encrypted on the sending device
-and decrypted only at authorized receiving endpoints. The LNKZ delivery service
+and decrypted only at authorized receiving endpoints. The Magnet delivery service
 must not hold content-decryption keys. The current relay is not E2EE; this is a
 new implementation requirement, not a description of existing protection.
 
@@ -66,7 +66,7 @@ An AI provider receiving readable content becomes a disclosed recipient; E2EE
 between people does not make that provider unable to read what is sent to it.
 A system that cannot participate in the encryption protocol receives only an
 explicit client-side export. Do not label that export as encrypted delivery to
-the destination. LNKZ servers and Magentic must not transparently decrypt chats.
+the destination. Magnet servers and Magentic must not transparently decrypt chats.
 
 ## MVP acceptance gate
 
@@ -75,7 +75,7 @@ Demonstrate these workflows through the product UI and its real backend:
 - Two separately authenticated people establish a private chat, verify their
   devices and exchange encrypted messages, including while one is offline.
 - Inspect requests, database/object storage, logs and backups: no message text,
-  media plaintext or content-decryption keys reach the LNKZ service. Document
+  media plaintext or content-decryption keys reach the Magnet service. Document
   the routing, timing and size metadata the service can still observe.
 - Tampered ciphertext, replayed messages and unauthorized recipients fail
   safely. Device/key changes require verification; no silent key replacement
@@ -145,14 +145,14 @@ is no longer the required user experience or the definition of the MVP.
 
 ## Separate products and boundaries
 
-LNKZ owns this sharing experience and its relay/mobile/web implementation.
+Magnet owns this sharing experience and its relay/mobile/web implementation.
 Workspaces remain a separate product concern; do not add workspace administration,
 team roles, shared project management or workspace orchestration to this MVP.
 Existing backend isolation controls remain intact.
 
 Magentic owns the standalone MCP server and marketplace direction. Preserve the
-existing LNKZ MCP compatibility surfaces and REST boundary. Neither MCP expansion
-nor marketplace publishing/payments is a prerequisite for the LNKZ MVP.
+existing Magnet MCP compatibility surfaces and REST boundary. Neither MCP expansion
+nor marketplace publishing/payments is a prerequisite for the Magnet MVP.
 
 See PRODUCT-SPLIT.md for repository boundaries and MARKETPLACE.md for the separate
 marketplace proposal. No repository/package/environment rename is authorized by

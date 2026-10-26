@@ -21,3 +21,9 @@ scratch
 **/.env*
 **/cdk.out
 *.pem
+artifacts
+**/.expo
+**/credentials.json
+**/*.jks
+**/*.p12
+**/*.mobileprovision

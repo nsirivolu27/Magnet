@@ -24,6 +24,6 @@ LLMM moves useful working context between large language models, AI clients, dev
 
 ## Compatibility promise
 
-The product is now called LLMM. The existing LNKZ-prefixed environment variables, MCP tool names,
-and lnkz:// resource URIs remain stable in the standalone adapter so current clients and
+The product is now called LLMM. The existing Magnet-prefixed environment variables, MCP tool names,
+and magnet:// resource URIs remain stable in the standalone adapter so current clients and
 deployments continue to work. New documentation and user-facing copy should use LLMM.

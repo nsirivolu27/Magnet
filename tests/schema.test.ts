@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Pool } from "pg";
-import { PostgresConversationStore } from "../src/lnkz/store/postgres.js";
+import { PostgresConversationStore } from "../src/magnet/store/postgres.js";
 
 test("the store refuses a schema behind or ahead before a data query", async (context) => {
   for (const version of [0, 1, 3]) {

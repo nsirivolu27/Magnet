@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createLnkzConnector } from "../src/lnkz/connectors/lnkz.js";
-import { createLnkzMcpServer } from "../src/lnkz/mcp.js";
-import { SqliteConversationStore } from "../src/lnkz/store/index.js";
+import { createMagnetConnector } from "../src/magnet/connectors/magnet.js";
+import { createMagnetMcpServer } from "../src/magnet/mcp.js";
+import { SqliteConversationStore } from "../src/magnet/store/index.js";
 
-test("local MCP preserves tool names and lnkz resource URIs", async (t) => {
+test("Magnet MCP preserves tools and serves both new and legacy resource URIs", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: 1_790_000_000_000 });
   const store = new SqliteConversationStore(":memory:");
-  const server = createLnkzMcpServer(store, [createLnkzConnector(store)], "https://lnkz.example");
-  const client = new Client({ name: "lnkz-test", version: "1.0.0" });
+  const server = createMagnetMcpServer(store, [createMagnetConnector(store)], "https://magnet.example");
+  const client = new Client({ name: "magnet-test", version: "1.0.0" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   t.after(async () => {
@@ -26,6 +27,20 @@ test("local MCP preserves tool names and lnkz resource URIs", async (t) => {
   const resources = await client.listResources();
   assert.deepEqual(
     resources.resources.map((resource) => resource.uri).sort(),
-    ["lnkz://connectors", "lnkz://conversations", "lnkz://graph", "lnkz://stats", "lnkz://transfers"],
+    ["magnet", "lnkz"].flatMap((scheme) => ["connectors", "conversations", "graph", "stats", "transfers"].map((path) => `${scheme}://${path}`)).sort(),
   );
+  assert.equal(client.getServerVersion()?.name, "magnet");
+  for (const path of ["stats", "connectors", "graph", "conversations", "transfers"]) {
+    const current = await client.readResource({ uri: `magnet://${path}` });
+    const legacy = await client.readResource({ uri: `lnkz://${path}` });
+    assert.ok("text" in current.contents[0] && "text" in legacy.contents[0]);
+    assert.equal(current.contents[0].text, legacy.contents[0].text);
+    assert.equal(current.contents[0].uri, `magnet://${path}`);
+    assert.equal(legacy.contents[0].uri, `lnkz://${path}`);
+  }
+  const saved = await store.save({ title: "Rename compatibility", source: { provider: "local" }, messages: [{ role: "user", content: "Keep this conversation." }] });
+  const current = await client.readResource({ uri: `magnet://conversation/${saved.id}` });
+  const legacy = await client.readResource({ uri: `lnkz://conversation/${saved.id}` });
+  assert.ok("text" in current.contents[0] && "text" in legacy.contents[0]);
+  assert.equal(current.contents[0].text, legacy.contents[0].text);
 });

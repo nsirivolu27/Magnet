@@ -1,7 +1,7 @@
 # Security reports
 
 Report suspected vulnerabilities privately through the repository's
-[security advisory address](https://github.com/nsirivolu27/LNKZ/security/advisories/new).
+[security advisory address](https://github.com/nsirivolu27/Magnet/security/advisories/new).
 Do not include credentials, live handoff links, or conversation bodies in a
 public issue. Include a minimal reproduction with synthetic data, the commit
 tested, deployment mode, impact, and suggested mitigation if known.

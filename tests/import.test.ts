@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { detectFormat, importConversations } from "../src/lnkz/import/index.js";
+import { detectFormat, importConversations } from "../src/magnet/import/index.js";
 
 const chatGptExport = [{
   title: "Rollout plan",
@@ -134,7 +134,7 @@ test("an unlabeled paste is kept whole rather than guessed at", () => {
   assert.ok(result.warnings.length > 0);
 });
 
-test("a LNKZ packet can be re-imported so a handoff becomes a conversation elsewhere", () => {
+test("a Magnet packet can be re-imported so a handoff becomes a conversation elsewhere", () => {
   const packet = {
     format: "lnkz.conversation.v1",
     conversation: {

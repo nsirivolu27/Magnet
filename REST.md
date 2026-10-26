@@ -1,16 +1,16 @@
-# LLMM/LNKZ REST API
+# Magnet REST API
 
-The LLMM repository exposes the authenticated REST relay. MCP hosting is
-provided by the standalone [`lnkz-mcp`](https://github.com/nsirivolu27/lnkz-mcp)
-adapter, which translates its stable tools, resources, and prompts into these
-routes.
+This repository exposes the authenticated REST relay and its embedded MCP
+surface. The separate [`lnkz-mcp`](https://github.com/nsirivolu27/lnkz-mcp)
+adapter also translates tools, resources, and prompts into these routes for
+clients connecting to a remote relay.
 
 ## Authentication
 
-Set `LNKZ_API_KEY` on the relay and send:
+Set `MAGNET_API_KEY` on the relay and send:
 
 ```http
-Authorization: Bearer <LNKZ_API_KEY>
+Authorization: Bearer <MAGNET_API_KEY>
 ```
 
 `GET /health` is unauthenticated. Share URLs are intentionally

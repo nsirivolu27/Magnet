@@ -1,18 +1,16 @@
-// Native equivalents of apps/web/src/magentic-tokens.css. Keep both themes
-// aligned with the vendored Magentic source; React Native cannot consume CSS.
+// Magnet uses a neutral palette. Color never implies encryption or delivery status.
 export const palettes = {
   dark: {
-    bg: "#0A0610", surface: "#130D1C", raised: "#1B1327", selected: "#251B35",
-    line: "#2C2140", strong: "#3E2F58", text: "#F2EDF8", muted: "#B0A4C4",
-    subtle: "#8B7DA3", accent: "#E84BA3", onAccent: "#12060E",
-    lineage: "#A87BFF", live: "#34E0B0", stop: "#FF5C47",
+    bg: "#181818", surface: "#181818", raised: "#242424", selected: "#303030",
+    line: "#3A3A3A", strong: "#555555", text: "#F5F5F5", muted: "#B8B8B8",
+    subtle: "#949494", accent: "#F5F5F5", onAccent: "#181818",
+    lineage: "#949494", live: "#F5F5F5", stop: "#F5F5F5",
   },
   light: {
-    bg: "#FAF7FD", surface: "#FFFFFF", raised: "#F3EEFA", selected: "#EAE2F5",
-    line: "#E4DCF0", strong: "#CFC2E4", text: "#140D1F", muted: "#4E4361",
-    subtle: "#6B5F80", accent: "#B22273", onAccent: "#FFFFFF",
-    lineage: "#6D34D6", live: "#0C8F70", stop: "#C23A28",
+    bg: "#FFFFFF", surface: "#FFFFFF", raised: "#F7F7F7", selected: "#EFEFEF",
+    line: "#DEDEDE", strong: "#B0B0B0", text: "#171717", muted: "#5C5C5C",
+    subtle: "#707070", accent: "#171717", onAccent: "#FFFFFF",
+    lineage: "#707070", live: "#171717", stop: "#171717",
   },
 };
-
 export type Palette = typeof palettes.dark;

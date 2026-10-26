@@ -1,10 +1,11 @@
 {
-  "name": "@lnkz/infra",
+  "name": "@magnet/infra",
   "private": true,
   "type": "module",
   "scripts": {
     "synth": "cdk synth",
     "diff": "cdk diff",
+    "test": "tsx --test stack.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -29,7 +29,7 @@ if (![keys.A, keys.B].every((key) => typeof key === "string" && key.length >= 32
 
 const env = { ...process.env };
 for (const name of Object.keys(env)) {
-  if (/^(LNKZ_|DATABASE_|SLACK_|JIRA_|FIGMA_|DOCUMENT_FEED_|FANTASY_)/.test(name)) delete env[name];
+  if (/^(MAGNET_|LNKZ_|DATABASE_|SLACK_|JIRA_|FIGMA_|DOCUMENT_FEED_|FANTASY_)/.test(name)) delete env[name];
 }
 delete env.WEB_DIST_DIR;
 const services = [];
@@ -51,9 +51,9 @@ try {
     const base = `http://${host}:${port}`;
     const child = spawn(process.execPath, ["dist/index.mjs"], {
       env: { ...env, NODE_ENV: "production", HOST: host === "127.0.0.1" ? host : "0.0.0.0", PORT: String(port),
-        LNKZ_API_KEY: keys[name], LNKZ_PUBLIC_BASE_URL: base, LNKZ_DB_FILE: resolve(directory, `${name}.db`),
+        MAGNET_API_KEY: keys[name], MAGNET_PUBLIC_BASE_URL: base, MAGNET_DB_FILE: resolve(directory, `${name}.db`),
         ALLOWED_HOSTS: `${host},localhost,127.0.0.1`, ALLOWED_ORIGINS: base,
-        LNKZ_TRANSFER_ALLOW_PRIVATE: "true" },
+        MAGNET_TRANSFER_ALLOW_PRIVATE: "true" },
       stdio: ["ignore", "ignore", "pipe"], windowsHide: true,
     });
     let logs = "";

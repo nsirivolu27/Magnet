@@ -9,7 +9,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-const workDir = await mkdtemp(join(tmpdir(), "lnkz-http-verify-"));
+const workDir = await mkdtemp(join(tmpdir(), "magnet-http-verify-"));
 const contextSecret = randomBytes(48).toString("base64url");
 const upstreamKey = randomBytes(32).toString("base64url");
 const downstreamKey = randomBytes(32).toString("base64url");
@@ -18,14 +18,14 @@ const services = [];
 try {
   const [upstreamPort, downstreamPort] = await Promise.all([freePort(), freePort()]);
   const downstream = startService("downstream", downstreamPort, downstreamKey, {
-    LNKZ_DB_FILE: join(workDir, "downstream.db"),
+    MAGNET_DB_FILE: join(workDir, "downstream.db"),
   });
   services.push(downstream);
   await waitForHealth(downstream);
 
   const upstream = startService("upstream", upstreamPort, upstreamKey, {
-    LNKZ_DB_FILE: join(workDir, "upstream.db"),
-    LNKZ_MCP_TARGETS: `downstream=http://127.0.0.1:${downstreamPort}/mcp`,
+    MAGNET_DB_FILE: join(workDir, "upstream.db"),
+    MAGNET_MCP_TARGETS: `downstream=http://127.0.0.1:${downstreamPort}/mcp`,
   });
   services.push(upstream);
   const health = await waitForHealth(upstream);
@@ -37,7 +37,7 @@ try {
     const tools = await upstreamClient.listTools();
     assert.ok(tools.tools.some((tool) => tool.name === "save_conversation"));
     const resources = await upstreamClient.listResources();
-    assert.ok(resources.resources.some((resource) => resource.uri === "lnkz://conversations"));
+    assert.ok(resources.resources.some((resource) => resource.uri === "magnet://conversations"));
 
     const discovery = await upstreamClient.callTool({ name: "list_publish_targets", arguments: {} });
     const targets = discovery.structuredContent?.targets;
@@ -74,23 +74,26 @@ try {
     await precedenceClient.close();
   }
 
-  const stdioClient = new Client({ name: "lnkz-stdio-verify", version: "1.0.0" });
-  const stdioTransport = new StdioClientTransport({
-    command: process.execPath,
-    args: ["dist/lnkz/stdio.mjs"],
-    cwd: process.cwd(),
-    env: cleanEnvironment({
-      NODE_ENV: "development",
-      LNKZ_ALLOW_UNAUTHENTICATED: "true",
-      LNKZ_DB_FILE: join(workDir, "stdio.db"),
-    }),
-    stderr: "pipe",
-  });
-  try {
-    await stdioClient.connect(stdioTransport);
-    assert.ok((await stdioClient.listTools()).tools.some((tool) => tool.name === "save_conversation"));
-  } finally {
-    await stdioClient.close();
+  for (const scheme of ["magnet", "lnkz"]) {
+    const stdioClient = new Client({ name: "magnet-stdio-verify", version: "1.0.0" });
+    const stdioTransport = new StdioClientTransport({
+      command: process.execPath,
+      args: [`dist/${scheme}/stdio.mjs`],
+      cwd: process.cwd(),
+      env: cleanEnvironment({
+        NODE_ENV: "development",
+        MAGNET_ALLOW_UNAUTHENTICATED: "true",
+        MAGNET_DB_FILE: join(workDir, "stdio.db"),
+      }),
+      stderr: "pipe",
+    });
+    try {
+      await stdioClient.connect(stdioTransport);
+      assert.equal(stdioClient.getServerVersion()?.name, "magnet");
+      assert.ok((await stdioClient.listTools()).tools.some((tool) => tool.name === "save_conversation"));
+    } finally {
+      await stdioClient.close();
+    }
   }
 
   console.log("HTTP forwarding, auth rejection/precedence, health redaction, tools/resources, and stdio verified.");
@@ -106,10 +109,10 @@ function startService(name, port, apiKey, extra) {
       NODE_ENV: "production",
       HOST: "127.0.0.1",
       PORT: String(port),
-      LNKZ_PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
-      LNKZ_API_KEY: apiKey,
-      LNKZ_MCP_API_KEY_REQUIRED: "true",
-      LNKZ_MCP_CONTEXT_SECRET: contextSecret,
+      MAGNET_PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
+      MAGNET_API_KEY: apiKey,
+      MAGNET_MCP_API_KEY_REQUIRED: "true",
+      MAGNET_MCP_CONTEXT_SECRET: contextSecret,
       ...extra,
     }),
     stdio: ["ignore", "pipe", "pipe"],
@@ -123,19 +126,22 @@ function startService(name, port, apiKey, extra) {
 
 function cleanEnvironment(overrides) {
   const env = Object.fromEntries(Object.entries(process.env).filter((entry) => typeof entry[1] === "string"));
+  for (const name of Object.keys(env)) {
+    if (/^(MAGNET_|LNKZ_)/.test(name)) delete env[name];
+  }
   for (const name of [
     "DATABASE_URL",
     "FANTASY_MCP_URL",
     "FANTASY_MCP_API_KEY",
-    "LNKZ_ALLOW_UNAUTHENTICATED",
-    "LNKZ_API_KEY",
-    "LNKZ_API_KEYS_JSON",
-    "LNKZ_AUTH_MODE",
-    "LNKZ_DB_FILE",
-    "LNKZ_MCP_API_KEY_REQUIRED",
-    "LNKZ_MCP_CONTEXT_SECRET",
-    "LNKZ_MCP_TARGETS",
-    "LNKZ_POSTGRES_WORKSPACE_ID",
+    "MAGNET_ALLOW_UNAUTHENTICATED",
+    "MAGNET_API_KEY",
+    "MAGNET_API_KEYS_JSON",
+    "MAGNET_AUTH_MODE",
+    "MAGNET_DB_FILE",
+    "MAGNET_MCP_API_KEY_REQUIRED",
+    "MAGNET_MCP_CONTEXT_SECRET",
+    "MAGNET_MCP_TARGETS",
+    "MAGNET_POSTGRES_WORKSPACE_ID",
   ]) delete env[name];
   return { ...env, ...overrides };
 }
@@ -156,7 +162,7 @@ async function waitForHealth(service) {
 }
 
 async function connectHttp(port, headers) {
-  const client = new Client({ name: "lnkz-http-verify", version: "1.0.0" });
+  const client = new Client({ name: "magnet-http-verify", version: "1.0.0" });
   const transport = new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`), {
     requestInit: { headers },
   });

@@ -6,19 +6,19 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const directory = await mkdtemp(join(tmpdir(), "lnkz-web-verify-"));
+const directory = await mkdtemp(join(tmpdir(), "magnet-web-verify-"));
 const key = randomBytes(32).toString("base64url");
 const port = await freePort();
 const base = `http://127.0.0.1:${port}`;
 const env = { ...process.env };
 for (const name of Object.keys(env)) {
-  if (/^(LNKZ_|DATABASE_|SLACK_|JIRA_|FIGMA_|DOCUMENT_FEED_|FANTASY_)/.test(name)) delete env[name];
+  if (/^(MAGNET_|LNKZ_|DATABASE_|SLACK_|JIRA_|FIGMA_|DOCUMENT_FEED_|FANTASY_)/.test(name)) delete env[name];
 }
 delete env.WEB_DIST_DIR;
 const child = spawn(process.execPath, ["dist/index.mjs"], {
   env: { ...env, NODE_ENV: "production", HOST: "127.0.0.1", PORT: String(port),
-    LNKZ_API_KEY: key, LNKZ_DB_FILE: join(directory, "lnkz.db"),
-    LNKZ_PUBLIC_BASE_URL: base, ALLOWED_HOSTS: "localhost,127.0.0.1", ALLOWED_ORIGINS: base },
+    MAGNET_API_KEY: key, MAGNET_DB_FILE: join(directory, "magnet.db"),
+    MAGNET_PUBLIC_BASE_URL: base, ALLOWED_HOSTS: "localhost,127.0.0.1", ALLOWED_ORIGINS: base },
   stdio: ["ignore", "pipe", "pipe"], windowsHide: true,
 });
 let logs = "";
@@ -49,7 +49,7 @@ try {
     assert.match(asset.headers.get("content-type"), /javascript/);
     assert.ok((await asset.text()).length > 0);
   }
-  for (const [path, title] of [["/", "LNKZ | Carry the conversation forward"], ["/console.html", "LNKZ Console"]]) {
+  for (const [path, title] of [["/", "Magnet | Carry the conversation forward"], ["/console.html", "Magnet Console"]]) {
     const response = await fetch(base + path);
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type"), /text\/html/);

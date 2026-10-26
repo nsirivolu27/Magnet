@@ -1,6 +1,7 @@
+import { envValue } from "./environment.mjs";
 #!/usr/bin/env node
 /**
- * Load the demo corpus into a running LNKZ.
+ * Load the demo corpus into a running Magnet.
  *
  * Without this, a fresh install has nothing to show. Search returns nothing,
  * find_conflicts has no pair to find, the graph draws no edges, and none of the
@@ -22,15 +23,15 @@
  *   node scripts/seed.mjs                      # http://127.0.0.1:3100
  *   node scripts/seed.mjs https://host         # a deployed instance
  *
- * Reads LNKZ_API_KEY from the environment. Safe to run twice: conversations
+ * Reads MAGNET_API_KEY from the environment. Safe to run twice: conversations
  * carry fixed ids, so a second run updates rather than duplicating.
  */
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const baseUrl = (process.argv[2] ?? process.env.LNKZ_BASE_URL ?? "http://127.0.0.1:3100").replace(/\/$/, "");
-const apiKey = process.env.LNKZ_API_KEY;
+const baseUrl = (process.argv[2] ?? envValue("MAGNET_BASE_URL") ?? "http://127.0.0.1:3100").replace(/\/$/, "");
+const apiKey = envValue("MAGNET_API_KEY");
 const here = dirname(fileURLToPath(import.meta.url));
 
 async function main() {
@@ -55,7 +56,7 @@ async function main() {
       console.error(`  FAIL ${conversation.title}`);
       console.error(`       HTTP ${response.status}: ${detail.slice(0, 200)}`);
       if (response.status === 401) {
-        console.error("\nSet LNKZ_API_KEY, or start the server with LNKZ_ALLOW_UNAUTHENTICATED=true.");
+        console.error("\nSet MAGNET_API_KEY, or start the server with MAGNET_ALLOW_UNAUTHENTICATED=true.");
         process.exit(1);
       }
       continue;

@@ -1,12 +1,14 @@
-# LNKZ messenger UI specification
+# Magnet messenger UI specification
 
 The screens of the messenger described in ROADMAP.md. This is the reference a
 design pass builds against and the contract the React Native components have to
 satisfy afterwards.
 
-Today `apps/mobile` is still the old relay console: Home, Library, Import,
-Handoffs, Settings. That is the previous product. Nothing below describes what
-is currently on screen.
+Today `apps/mobile` has a monochrome chat view and a persistent composer for
+saved human messages. Its navigation menu opens conversation history, imports,
+shared links, and settings. The current backend is still the plaintext relay;
+recipient messaging, encryption, and media delivery below remain future work.
+Use DESIGN.md for the current visual direction.
 
 ## The constraint that shapes everything
 
@@ -147,7 +149,7 @@ size. Any type with no supported preview gets a download action and says so
 rather than showing a broken preview. Filenames, thumbnails and prompts are
 inside the encrypted payload, so all of this renders only after decryption.
 
-**The AI context block.** What makes this LNKZ rather than a generic messenger.
+**The AI context block.** What makes this Magnet rather than a generic messenger.
 An attached share carries its source platform, the prompt when one exists, the
 selected conversation, notes and attribution. It renders as a collapsed card
 below the bubble, bordered in `lineage`, expanding to the full context.

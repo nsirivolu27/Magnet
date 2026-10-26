@@ -1,9 +1,10 @@
+import { envValue } from "./environment.mjs";
 import { randomUUID } from "node:crypto";
 
-const base = new URL(process.argv[2] ?? process.env.LNKZ_BASE_URL ?? "http://127.0.0.1:3100");
+const base = new URL(process.argv[2] ?? envValue("MAGNET_BASE_URL") ?? "http://127.0.0.1:3100");
 if (base.username || base.password || base.search || base.hash) throw new Error("Use a base URL without credentials, query or fragment.");
-if (!process.env.LNKZ_API_KEY) throw new Error("Set LNKZ_API_KEY for the instance being checked.");
-const headers = { authorization: `Bearer ${process.env.LNKZ_API_KEY}`, "content-type": "application/json" };
+if (!envValue("MAGNET_API_KEY")) throw new Error("Set MAGNET_API_KEY for the instance being checked.");
+const headers = { authorization: `Bearer ${envValue("MAGNET_API_KEY")}`, "content-type": "application/json" };
 let id;
 try {
   for (const path of ["/health", "/ready"]) await call(path);
