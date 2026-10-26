@@ -4,6 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   SafeAreaView,
@@ -27,11 +28,11 @@ import {
   type ImportPreview,
   type IssuedHandoff,
   type Lineage,
-  type Packet,
   type Stats,
 } from "./src/api";
 import { useTheme } from "./src/styles";
 import { clearConnection, loadConnection, saveConnection, type StoredConnection } from "./src/storage";
+import { archiveChoices, downloadText, readerUrl } from "./src/transfer";
 
 type Tab = "home" | "library" | "import" | "handoffs" | "settings";
 
@@ -387,12 +388,26 @@ function ImportView({ client, busy, setBusy, onImported, setError }: {
   const { styles, colors } = useTheme();
   const [payload, setPayload] = useState("");
   const [tags, setTags] = useState("");
+  const [choices, setChoices] = useState<ReturnType<typeof archiveChoices>>([]);
+  const [preview, setPreview] = useState<Awaited<ReturnType<MagnetClient["previewText"]>> | null>(null);
+  const changePayload = (text: string) => { setPayload(text); setPreview(null); setChoices(archiveChoices(text)); };
+  const chooseFile = () => {
+    const input = document.createElement("input"); input.type = "file"; input.accept = ".json,.txt,.md";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 100_000_000) { setError("This archive is over 100 MB. Export or paste just the conversation you want to transfer."); return; }
+      void file.text().then(changePayload).catch(() => setError("Could not read this file. Try a JSON or text export."));
+    };
+    input.click();
+  };
 
   const run = async () => {
     if (!payload.trim()) { setError("Paste a conversation first."); return; }
     setBusy("import");
     setError("");
     try {
+      if (!preview) { setPreview(await client.previewText(payload.trim())); return; }
       const result = await client.importText(payload.trim(), "auto", tags.split(",").map((tag) => tag.trim()).filter(Boolean));
       const conversation = result.conversations[0];
       if (!conversation) throw new Error("The server did not return an imported conversation.");
@@ -409,11 +424,15 @@ function ImportView({ client, busy, setBusy, onImported, setError }: {
   return (
     <View>
       <Text style={styles.pageTitle}>Bring a conversation</Text>
+      <Text style={styles.hint}>From ChatGPT: paste the chat with “You said:” and “ChatGPT said:” labels, or choose conversations.json from your downloaded data export. Only the chat you select is uploaded. Shared ChatGPT URLs alone cannot be imported.</Text>
+      {Platform.OS === "web" ? <Action label="Choose export or text file" onPress={chooseFile} secondary disabled={Boolean(busy)} /> : null}
+      {choices.length ? <View><SectionTitle>Choose one conversation</SectionTitle>{choices.map((choice, index) => <Action key={index} label={choice.title} onPress={() => { setPayload(choice.payload); setChoices([]); setPreview(null); }} secondary />)}</View> : null}
       <Field label="Tags (optional)" value={tags} onChangeText={setTags} placeholder="research, launch" />
       <Text style={styles.fieldLabel}>Conversation or export</Text>
-      <TextInput multiline textAlignVertical="top" style={styles.textarea} value={payload} onChangeText={setPayload} placeholder="Paste ChatGPT, Claude, Gemini, Markdown, JSON, or plain text…" placeholderTextColor={colors.subtle} />
-      <Text style={styles.hint}>Magnet detects the format and preserves the original message order.</Text>
-      <Action label={busy === "import" ? "Importing…" : "Import conversation →"} onPress={run} disabled={busy === "import"} />
+      <TextInput accessibilityLabel="Conversation or export" multiline textAlignVertical="top" style={styles.textarea} value={choices.length ? "Choose a conversation above before uploading this archive." : payload} editable={!choices.length && !busy} onChangeText={changePayload} placeholder="You said:\nHelp me plan…\nChatGPT said:\nHere is the plan…" placeholderTextColor={colors.subtle} />
+      <Text style={styles.hint}>Text and message order are preserved. Attachments, hidden reasoning and platform memory are not transferred. Review the imported thread before sharing.</Text>
+      {preview ? <View style={styles.provenance}>{preview.preview.map((item, index) => <Text key={index}>{item.title} · {item.provider} · {item.messages} messages</Text>)}{preview.warnings.map((warning, index) => <Text key={index} style={styles.hint}>{warning}</Text>)}</View> : null}
+      <Action label={busy === "import" ? "Checking…" : preview ? "Save conversation →" : "Preview import"} onPress={run} disabled={Boolean(busy) || choices.length > 0 || !payload.trim()} />
       <View style={styles.divider} />
       <ReceiveLink client={client} onReceived={onImported} setError={setError} />
     </View>
@@ -533,15 +552,15 @@ function HandoffsView({ client, conversations, handoffs, selectedId, onSelect, r
   const [audience, setAudience] = useState("");
   const [redact, setRedact] = useState(true);
   const [issued, setIssued] = useState<IssuedHandoff | null>(null);
-  const [packet, setPacket] = useState<Packet | null>(null);
+  const [context, setContext] = useState<{ text: string; messageCount: number } | null>(null);
   const [working, setWorking] = useState("");
 
   const chosen = conversations.find((item) => item.id === selectedId) ?? conversations[0];
 
-  const buildPacket = async () => {
+  const prepareContext = async () => {
     if (!chosen) return;
     setWorking("packet"); setError("");
-    try { setPacket((await client.buildPacket([chosen.id])).packet); }
+    try { setContext(await client.continuationText(chosen.id)); }
     catch (cause) { setError(messageOf(cause)); }
     finally { setWorking(""); }
   };
@@ -556,11 +575,19 @@ function HandoffsView({ client, conversations, handoffs, selectedId, onSelect, r
         audience: audience.trim() || undefined,
         redact,
       });
-      setIssued(result);
+      setIssued({ ...result, shareUrl: readerUrl(result.shareUrl) });
       setNotice("Share link created.");
       await refresh();
     } catch (cause) { setError(messageOf(cause)); }
     finally { setWorking(""); }
+  };
+
+  const copyContext = async () => {
+    if (!context) return;
+    try {
+      if (Platform.OS === "web") { await navigator.clipboard.writeText(context.text); setNotice("Full text copied. Paste into a new Claude chat, then add your next question."); }
+      else await Share.share({ message: context.text });
+    } catch { setNotice("Select the full text below to copy it, or download the transcript."); }
   };
 
   const share = async (value: string) => {
@@ -590,16 +617,25 @@ function HandoffsView({ client, conversations, handoffs, selectedId, onSelect, r
       <Text style={styles.pageTitle}>Share a conversation</Text>
       <SectionTitle>1 · choose the thread</SectionTitle>
       {conversations.map((item, index) => (
-        <ConversationRow key={item.id} item={item} index={index + 1} selected={chosen?.id === item.id} onPress={() => { onSelect(item.id); setIssued(null); setPacket(null); }} />
+        <ConversationRow key={item.id} item={item} index={index + 1} selected={chosen?.id === item.id} onPress={() => { onSelect(item.id); setIssued(null); setContext(null); }} />
       ))}
       {!chosen ? <Empty>Import a conversation before creating a handoff.</Empty> : null}
       {chosen ? (
         <>
-          <SectionTitle>2 · review the packet</SectionTitle>
-          <Action label={working === "packet" ? "Building…" : "Build context packet"} onPress={buildPacket} secondary disabled={Boolean(working)} />
-          {packet ? <View style={styles.packet}><Text style={styles.meta}>{packet.usedTokens} / {packet.budgetTokens} TOKENS</Text><Text style={styles.packetText}>{packet.markdown}</Text></View> : null}
-          <SectionTitle>3 · set the boundary</SectionTitle>
-          <Field label="Audience" value={audience} onChangeText={setAudience} placeholder="Claude · My space" />
+          <SectionTitle>Continue in Claude or another AI</SectionTitle>
+          <Text style={styles.hint}>Copy or download the full saved text, then paste or upload it into a new chat. Nothing is summarized or cut to fit. The destination’s context limit still applies. Review private content before sending; this export is not redacted.</Text>
+          <Action label={working === "packet" ? "Preparing…" : "Prepare full conversation"} onPress={prepareContext} secondary disabled={Boolean(working)} />
+          {context ? <View style={styles.packet}>
+            <Text style={styles.meta}>{context.messageCount} messages · Full saved text</Text>
+            <Action label="Copy for Claude or another AI" onPress={copyContext} />
+            {Platform.OS === "web" ? <Action label="Download transcript (.txt)" onPress={() => downloadText(context.text, "magnet-context.txt")} secondary /> : null}
+            <Action label="Open Claude" onPress={() => { void Linking.openURL("https://claude.ai/new").catch(() => setError("Open claude.ai in your browser and paste the copied text.")); }} secondary />
+            <Text style={styles.hint}>Opening Claude does not send your conversation. Paste the text or upload the file there.</Text>
+            <TextInput accessibilityLabel="Full continuation text" multiline editable={false} style={styles.textarea} value={context.text} />
+          </View> : null}
+          <SectionTitle>Send to another person</SectionTitle>
+          <Text style={styles.hint}>The recipient can read the conversation and take it to their own AI without an account. Anyone holding the link can open it; the recipient label is not an access restriction. Revoking stops future opens, not copies already saved.</Text>
+          <Field label="Recipient label (optional)" value={audience} onChangeText={setAudience} placeholder="Alex · Project planning" />
           <View style={styles.fieldRow}>
             <View style={styles.fieldHalf}><Field label="Expires in minutes" value={ttl} onChangeText={setTtl} keyboardType="number-pad" /></View>
             <View style={styles.fieldHalf}><Field label="Max uses" value={uses} onChangeText={setUses} keyboardType="number-pad" /></View>

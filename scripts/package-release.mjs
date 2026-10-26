@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
 if (!/^[0-9]+\.[0-9]+\.[0-9]+(?:[-.][a-zA-Z0-9.-]+)?$/.test(pkg.version)) throw new Error("Unsafe release version");
-for (const file of ["index.mjs", "magnet/stdio.mjs", "magnet/store/migrate.mjs", "magnet/store/migrations/001_initial.sql", "magnet/store/migrations/002_identity_context.sql", "web/index.html", "web/console.html", "mobile/index.html"]) {
+for (const file of ["index.mjs", "magnet/stdio.mjs", "magnet/store/migrate.mjs", "magnet/store/migrations/001_initial.sql", "magnet/store/migrations/002_identity_context.sql", "web/index.html", "web/console.html", "web/receive.html", "mobile/index.html"]) {
   if (!(await stat(join(root, "dist", file))).isFile()) throw new Error(`Missing release file: ${file}`);
 }
 const temporary = await mkdtemp(join(tmpdir(), "magnet-package-"));

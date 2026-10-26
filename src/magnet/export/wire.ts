@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Express, RequestHandler } from "express";
 import { EXPORT_FORMATS, exportConversation, type ExportFormat } from "./index.js";
 import type { ConversationStore } from "../store/index.js";
+import { continuationText } from "./context.js";
 
 /**
  * Registration lives here rather than inline in mcp.ts and server.ts so that
@@ -18,6 +19,13 @@ const exportSchema = {
 };
 
 export function mountExportRoutes(app: Express, store: ConversationStore, requireApiKey: RequestHandler): void {
+  app.get("/api/conversations/:id/context", requireApiKey, async (request, response) => {
+    const id = Array.isArray(request.params.id) ? request.params.id[0] : request.params.id;
+    const conversation = await store.get(id);
+    if (!conversation) { response.status(404).json({ error: "Conversation not found." }); return; }
+    response.setHeader("cache-control", "no-store");
+    response.json({ text: continuationText(conversation), messageCount: conversation.messages.length });
+  });
   app.get("/api/conversations/:id/export", requireApiKey, async (request, response) => {
     const parsed = exportFormatSchema.safeParse(request.query.format ?? "markdown");
     if (!parsed.success) {
