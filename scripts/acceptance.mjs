@@ -76,10 +76,26 @@ try {
   pass("two relays are running on separate databases");
 
   // 1. A person saves a conversation from an LLM client.
-  const original = (await call(a, "POST", "/api/conversations", TRANSCRIPT)).conversation;
+  const mapping = {};
+  TRANSCRIPT.messages.forEach((message, index) => { mapping[`m${index}`] = {
+    parent: index ? `m${index - 1}` : null,
+    message: { author: { role: message.role }, content: { content_type: "text", parts: [message.content] } },
+  }; });
+  const chatGptPayload = JSON.stringify({ title: TRANSCRIPT.title, current_node: "m3", mapping });
+  const importPreview = await phoneA.previewText(chatGptPayload);
+  assert.equal(importPreview.preview[0].messages, 4);
+  assert.equal((await phoneA.listConversations()).conversations.length, 0, "preview must not save a conversation");
+  const chatGptImport = await phoneA.importText(chatGptPayload);
+  const original = (await phoneA.getConversation(chatGptImport.conversations[0].id)).conversation;
+  assert.deepEqual(original.messages.map(({ role, content }) => ({ role, content })), TRANSCRIPT.messages);
   assert.ok(original.id, "A did not return an id for the saved conversation");
   assert.equal(original.messages.length, 4, "A did not store every message");
   pass("a transcript is imported into relay A with its turns in order");
+  const context = await phoneA.continuationText(original.id);
+  assert.equal(context.messageCount, 4);
+  for (const message of TRANSCRIPT.messages) assert.ok(context.text.includes(message.content), "full-context export lost content");
+  assert.equal((await fetch(`${a.base}/api/conversations/${original.id}/context`)).status, 401);
+  pass("ChatGPT import previews without saving and full-context export preserves every turn behind authentication");
 
   // 2. Deterministic analysis, not a model call.
   const read = await call(a, "GET", `/api/conversations/${original.id}`);
@@ -118,16 +134,17 @@ try {
   // test: a dry run used to redeem the link, so on a one-use link the preview
   // succeeded and the import that followed failed. Looking twice here would
   // have spent it twice over.
-  const firstLook = await phoneB.previewLink(handoff.shareUrl);
+  const readerLink = `${a.base}/receive.html#${handoff.token}`;
+  const firstLook = await phoneB.previewLink(readerLink);
   assert.equal(firstLook.preview.messages, 4, "the preview did not describe the conversation");
-  const secondLook = await phoneB.previewLink(handoff.shareUrl);
+  const secondLook = await phoneB.previewLink(readerLink);
   assert.equal(secondLook.preview.usesRemaining, 1, `looking at the link spent a use; ${secondLook.preview.usesRemaining} left after two previews`);
   assert.equal(JSON.stringify(secondLook).includes(PLANTED_CREDENTIAL), false, "the planted credential leaked through a preview");
   assert.equal((await phoneA.listHandoffs()).handoffs.find((h) => h.id === handoff.id).uses, 0, "previewing spent a use");
   pass("the mobile client previews the link twice without spending its single use");
 
   // 7. B pulls it. B never pushed anything to A and A never pushed to B.
-  const imported = (await phoneB.importLink(handoff.shareUrl)).conversation;
+  const imported = (await phoneB.importLink(readerLink)).conversation;
   const onB = (await call(b, "GET", `/api/conversations/${imported.id}`)).conversation;
   assert.notEqual(onB.id, original.id, "B reused A's id instead of assigning its own");
   assert.equal(onB.lineage?.originConversationId, original.id, "B lost the id it came from");

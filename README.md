@@ -11,15 +11,40 @@ It has a simple black-and-white chat interface for mobile and the web.
 
 - **Start a conversation.** Write a message and keep adding to the same thread.
 - **Bring an existing chat.** Paste a ChatGPT, Claude, or Gemini export, Markdown,
-  JSON, or plain text. Magnet preserves the message order.
+  JSON, or plain text. In the web app, choose a text file or select one chat from
+  ChatGPT's `conversations.json` archive before uploading. Preview the message count and import warnings before saving.
+- **Continue in Claude or another AI.** Prepare, copy, or download the full saved
+  transcript from Share, then paste or upload it into a new AI chat. This handoff
+  retains message roles, order, source, code, and text without summarizing it.
 - **Find what you saved.** Browse recent conversations or search your history.
 - **Share a conversation.** Create a link with an expiration and a use limit,
-  optionally filter common sensitive text, and revoke access when needed.
+  optionally filter common sensitive text, and revoke access when needed. The
+  recipient sees a readable preview and can open and download the chat without an account.
 - **Pick up where someone left off.** Preview a shared link without using it up,
   keep a copy, or continue it with a new message. The conversation keeps its origin.
 
 The current app stores and shares conversations. It does **not** generate AI
 replies or automatically send messages into every AI platform.
+
+## ChatGPT → Magnet → Claude or a person
+
+1. In **Import or receive**, paste a transcript with `You said:` / `ChatGPT said:`
+   labels, or choose `conversations.json` from a ChatGPT data export. For an archive,
+   select the conversation locally; the other chats are not uploaded.
+2. **Preview import**, review the message count and warnings, then **Save conversation**.
+3. Open **Share → Prepare full conversation**. Use **Copy for Claude or another AI**
+   or **Download transcript (.txt)**, open Claude, and paste or upload the text with
+   your next question. Opening Claude alone does not transfer anything.
+4. To send to a person instead, create a share link and send it through your preferred
+   messenger. They can preview without spending a use, then explicitly open the
+   conversation. Downloading a Magnet copy lets them import it later without reopening
+   the link. They can also paste the link into their own Magnet installation.
+
+The AI export is the full saved text, not a shortened context packet. It is **not
+redacted**; the filtering switch applies to person links only. A destination model's
+context limit still applies. Attachments, hidden reasoning and platform memory do
+not transfer; reattach needed files in the destination. ChatGPT shared URLs are not
+scraped. Revocation cannot erase copies recipients have already saved.
 
 ## Try the app locally
 

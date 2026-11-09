@@ -43,6 +43,7 @@ export function importChatGpt(value: unknown): { conversations: ConversationInpu
     }
 
     const leaf = asString(record.current_node) || findDeepestLeaf(nodes);
+    if (!asString(record.current_node)) warnings.push("This export has no active branch marker. The longest branch was selected; review the messages before sharing.");
     const branch = walkToRoot(nodes, leaf);
     if (!branch.length) {
       warnings.push(`Skipped "${asString(record.title) || "untitled"}": no reachable message branch.`);
@@ -55,7 +56,10 @@ export function importChatGpt(value: unknown): { conversations: ConversationInpu
       if (!message) continue;
       const metadata = asRecord(message.metadata) ?? {};
       if (metadata.is_visually_hidden_from_conversation === true) continue;
-      const content = flattenContent(asRecord(message.content)?.parts ?? message.content);
+      const parts = asRecord(message.content)?.parts;
+      const hasMedia = Array.isArray(parts) && parts.some((part) => typeof part !== "string" && !asString(asRecord(part)?.text));
+      if (hasMedia) warnings.push("An attachment or non-text message could not be transferred. Reattach the original file in the destination app.");
+      const content = flattenContent(parts ?? message.content) || (hasMedia ? "[Attachment not transferred; reattach the original file.]" : "");
       if (!content.trim()) continue;
       const role = normalizeRole(asRecord(message.author)?.role);
       if (role === "system" && !content.trim()) continue;
