@@ -33,9 +33,3 @@ mcp-server/
 *.pem
 _last-run.txt
 cdk.out/
-artifacts/
-.expo/
-credentials.json
-*.jks
-*.p12
-*.mobileprovision

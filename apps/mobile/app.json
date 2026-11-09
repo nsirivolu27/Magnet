@@ -1,15 +1,13 @@
 {
   "expo": {
-    "name": "Magnet",
-    "slug": "magnet-mobile",
+    "name": "LNKZ",
+    "slug": "lnkz-mobile",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
-    "backgroundColor": "#181818",
-    "scheme": ["magnet", "lnkz"],
-    "experiments": {
-      "baseUrl": "/mobile"
-    },
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#f4f1e9",
+    "scheme": "lnkz",
+    "experiments": { "baseUrl": "/mobile" },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.lnkz.mobile"
@@ -20,8 +18,6 @@
     "web": {
       "bundler": "metro"
     },
-    "plugins": [
-      "expo-secure-store"
-    ]
+    "plugins": ["expo-secure-store"]
   }
 }

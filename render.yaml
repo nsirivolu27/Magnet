@@ -1,7 +1,7 @@
 # Render blueprint. A disk is required: the SQLite store must survive a redeploy.
 services:
   - type: web
-    name: magnet
+    name: lnkz
     runtime: docker
     plan: starter
     dockerfilePath: ./Dockerfile
@@ -16,9 +16,11 @@ services:
         value: 0.0.0.0
       - key: PORT
         value: "3100"
-      - key: MAGNET_API_KEY
+      - key: LNKZ_DB_FILE
+        value: /app/.data/lnkz.db
+      - key: LNKZ_API_KEY
         generateValue: true
-      - key: MAGNET_PUBLIC_BASE_URL
+      - key: LNKZ_PUBLIC_BASE_URL
         sync: false
       - key: ALLOWED_HOSTS
         sync: false
