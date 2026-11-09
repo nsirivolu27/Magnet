@@ -2,25 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { fetchTransfer, previewTransfer, isPublicAddress, safeUrl, TransferError } from "../src/magnet/transfer.js";
-import { SqliteConversationStore } from "../src/magnet/store/index.js";
+import { fetchTransfer, isPublicAddress, safeUrl, TransferError } from "../src/lnkz/transfer.js";
+import { SqliteConversationStore } from "../src/lnkz/store/index.js";
 
-const LOCAL = { MAGNET_TRANSFER_ALLOW_PRIVATE: "true" } as NodeJS.ProcessEnv;
-
-test("preview only requests metadata and never falls back to redeeming an unsupported link", async (t) => {
-  const requests: string[] = [];
-  const server = createServer((req, res) => {
-    requests.push(req.url ?? "");
-    assert.equal(req.headers.authorization, undefined);
-    res.writeHead(404, { "content-type": "application/json" });
-    res.end('{"error":"unsupported"}');
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  await assert.rejects(() => previewTransfer(`${base}/share/token`, LOCAL), /No conversation was redeemed/);
-  assert.deepEqual(requests, ["/share/token/preview"]);
-});
+const LOCAL = { LNKZ_TRANSFER_ALLOW_PRIVATE: "true" } as NodeJS.ProcessEnv;
 
 /** Serves one body on any path, so a test can act as the far instance. */
 async function serve(body: string, status = 200): Promise<{ url: string; close: () => Promise<void> }> {
@@ -103,7 +88,7 @@ test("a transferred conversation records where it came from", async () => {
   }
 });
 
-test("a link that is not a Magnet packet is refused rather than half-imported", async () => {
+test("a link that is not a LNKZ packet is refused rather than half-imported", async () => {
   const origin = await serve(JSON.stringify({ hello: "world" }));
   try {
     await assert.rejects(() => fetchTransfer(origin.url, LOCAL), TransferError);

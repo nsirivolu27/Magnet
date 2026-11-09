@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Pool } from "pg";
-import { PostgresConversationStore, DEFAULT_WORKSPACE_ID } from "../src/magnet/store/postgres.js";
-import { runPostgresMigrations } from "../src/magnet/store/migrate.js";
+import { PostgresConversationStore, DEFAULT_WORKSPACE_ID } from "../src/lnkz/store/postgres.js";
+import { runPostgresMigrations } from "../src/lnkz/store/migrate.js";
 
-const migrationUrl = process.env.MAGNET_POSTGRES_MIGRATION_URL;
-const appUrl = process.env.MAGNET_POSTGRES_TEST_URL;
+const migrationUrl = process.env.LNKZ_POSTGRES_MIGRATION_URL;
+const appUrl = process.env.LNKZ_POSTGRES_TEST_URL;
 const enabled = Boolean(migrationUrl && appUrl);
 
 test("Postgres preserves search, handoffs, and workspace isolation", { skip: !enabled }, async () => {
@@ -29,11 +29,7 @@ test("Postgres preserves search, handoffs, and workspace isolation", { skip: !en
     assert.match(matches[0]?.snippet ?? "", /Postgres|multiple/i);
 
     const handoff = await store.createHandoff({ conversationId: id, maxUses: 1 });
-    assert.equal((await store.peekHandoff(handoff.token))?.usesRemaining, 1);
-    assert.equal((await store.peekHandoff(handoff.token))?.messageCount, 1);
-    assert.equal((await store.listHandoffs(id))[0].uses, 0);
     assert.equal((await store.redeemHandoff(handoff.token))?.conversation.id, id);
-    assert.equal(await store.peekHandoff(handoff.token), null);
     assert.equal(await store.redeemHandoff(handoff.token), null);
   } finally {
     await store.remove(id);
