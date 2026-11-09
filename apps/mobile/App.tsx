@@ -1,22 +1,22 @@
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
   Share,
+  StyleSheet,
   Switch,
-  Text as NativeText,
+  Text,
   TextInput,
   View,
 } from "react-native";
 
 import {
-  MagnetClient,
+  LnkzClient,
   messageOf,
   normalizeBaseUrl,
   type Analysis,
@@ -24,47 +24,40 @@ import {
   type Conversation,
   type ConversationSummary,
   type HandoffSummary,
-  type ImportPreview,
   type IssuedHandoff,
-  type Lineage,
   type Packet,
   type Stats,
 } from "./src/api";
-import { useTheme } from "./src/styles";
 import { clearConnection, loadConnection, saveConnection, type StoredConnection } from "./src/storage";
 
 type Tab = "home" | "library" | "import" | "handoffs" | "settings";
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "home", label: "New conversation" },
-  { id: "library", label: "All conversations" },
-  { id: "import", label: "Import or receive" },
-  { id: "handoffs", label: "Shared links" },
-  { id: "settings", label: "Settings" },
+const TABS: { id: Tab; label: string; mark: string }[] = [
+  { id: "home", label: "HOME", mark: "01" },
+  { id: "library", label: "LIBRARY", mark: "02" },
+  { id: "import", label: "IMPORT", mark: "03" },
+  { id: "handoffs", label: "HANDOFFS", mark: "04" },
+  { id: "settings", label: "SETTINGS", mark: "05" },
 ];
 
-const DEFAULT_URL = process.env.EXPO_PUBLIC_MAGNET_API_URL
-  ?? process.env.EXPO_PUBLIC_LNKZ_API_URL
-  ?? (Platform.OS === "web" && typeof window !== "undefined" ? window.location.origin : "http://localhost:3100");
+const DEFAULT_URL = process.env.EXPO_PUBLIC_LNKZ_API_URL ?? "http://localhost:3100";
 
 export default function App() {
-  const { styles, colors, dark } = useTheme();
   const [booting, setBooting] = useState(true);
   const [connection, setConnection] = useState<StoredConnection | null>(null);
 
   useEffect(() => {
     loadConnection()
       .then(setConnection)
-      .catch(() => setConnection(null))
       .finally(() => setBooting(false));
   }, []);
 
   if (booting) {
     return (
       <SafeAreaView style={styles.boot}>
-        <StatusBar style={dark ? "light" : "dark"} />
-        <ActivityIndicator color={colors.accent} />
-        <Text style={styles.mono}>Opening Magnet…</Text>
+        <StatusBar style="dark" />
+        <ActivityIndicator color="#0b0c0b" />
+        <Text style={styles.mono}>RESTORING YOUR RELAY</Text>
       </SafeAreaView>
     );
   }
@@ -77,7 +70,6 @@ export default function App() {
 }
 
 function ConnectionScreen({ onConnected }: { onConnected: (connection: StoredConnection) => void }) {
-  const { styles, dark } = useTheme();
   const [baseUrl, setBaseUrl] = useState(DEFAULT_URL);
   const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState(false);
@@ -89,10 +81,7 @@ function ConnectionScreen({ onConnected }: { onConnected: (connection: StoredCon
     try {
       const normalized = normalizeBaseUrl(baseUrl);
       const candidate = { baseUrl: normalized, apiKey: apiKey.trim() };
-      // /ready first, then an authenticated call. Separating them is what lets
-      // the error say whether the URL is wrong or the key is, instead of one
-      // "could not connect" covering both.
-      await new MagnetClient(candidate.baseUrl, candidate.apiKey).checkConnection();
+      await new LnkzClient(candidate.baseUrl, candidate.apiKey).stats();
       await saveConnection(candidate);
       onConnected(candidate);
     } catch (cause) {
@@ -104,27 +93,27 @@ function ConnectionScreen({ onConnected }: { onConnected: (connection: StoredCon
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style={dark ? "light" : "dark"} />
+      <StatusBar style="light" />
+      <View style={styles.ticker}><Text style={styles.tickerText}>★ KEEP THE CONTEXT · LOSE THE NOISE · PRIVATE BY DEFAULT</Text></View>
       <ScrollView contentContainerStyle={styles.connectionPage} keyboardShouldPersistTaps="handled">
-        <Text style={styles.connectionTitle}>Magnet</Text>
-        <Text style={styles.hero}>Bring your conversations together.</Text>
-        <Text style={styles.copy}>Connect to your Magnet address to save conversations and share them with someone else.</Text>
-        <Field label="Magnet address" value={baseUrl} onChangeText={setBaseUrl} autoCapitalize="none" keyboardType="url" />
-        <Field label="Access key" value={apiKey} onChangeText={setApiKey} autoCapitalize="none" secureTextEntry />
+        <Text style={styles.brandMark}>△</Text>
+        <Text style={styles.connectionTitle}>LNKZ</Text>
+        <Text style={styles.eyebrow}>CONNECT / YOUR RELAY / ONE SECURE KEY</Text>
+        <Text style={styles.hero}>YOUR CONTEXT.{"\n"}<Text style={styles.highlight}>READY TO MOVE.</Text></Text>
+        <Text style={styles.copy}>Connect this phone to the LNKZ relay that stores your conversations and creates private handoffs.</Text>
+        <Field label="SERVER URL" value={baseUrl} onChangeText={setBaseUrl} autoCapitalize="none" keyboardType="url" />
+        <Field label="API KEY" value={apiKey} onChangeText={setApiKey} autoCapitalize="none" secureTextEntry />
         {error ? <Notice tone="error">{error}</Notice> : null}
-        <Action label={busy ? "Connecting…" : "Continue"} onPress={connect} disabled={busy} />
-        <Text style={styles.hint}>Use the address and access key from your Magnet setup. Your connection is remembered on this device.</Text>
+        <Action label={busy ? "TESTING CONNECTION…" : "CONNECT TO LNKZ →"} onPress={connect} disabled={busy} />
+        <Text style={styles.hint}>The API key is stored in the device keychain. Web preview uses this browser’s local storage.</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 function RelayApp({ connection, onDisconnect }: { connection: StoredConnection; onDisconnect: () => void }) {
-  const { styles, colors, dark } = useTheme();
-  const client = useMemo(() => new MagnetClient(connection.baseUrl, connection.apiKey), [connection]);
+  const client = useMemo(() => new LnkzClient(connection.baseUrl, connection.apiKey), [connection]);
   const [tab, setTab] = useState<Tab>("home");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const requestVersion = useRef(0);
   const [stats, setStats] = useState<Stats | null>(null);
   const [connectors, setConnectors] = useState<ConnectorStatus[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -157,30 +146,22 @@ function RelayApp({ connection, onDisconnect }: { connection: StoredConnection; 
   useEffect(() => { void refresh(); }, [client]);
 
   const openConversation = async (id: string) => {
-    const version = ++requestVersion.current;
     setBusy("conversation");
     setError("");
-    setMenuOpen(false);
-    setTab("home");
-    setSelected(null);
-    setSelectedId(id);
     try {
-      const result = await client.getConversation(id);
-      if (version === requestVersion.current) setSelected(result);
+      setSelectedId(id);
+      setSelected(await client.getConversation(id));
+      setTab("library");
     } catch (cause) {
-      if (version === requestVersion.current) setError(messageOf(cause));
+      setError(messageOf(cause));
     } finally {
-      if (version === requestVersion.current) setBusy("");
+      setBusy("");
     }
   };
 
   const selectTab = (next: Tab) => {
-    ++requestVersion.current;
-    setBusy("");
     setNotice("");
     setError("");
-    setMenuOpen(false);
-    if (next === "home") { setSelected(null); setSelectedId(null); }
     setTab(next);
   };
 
@@ -191,20 +172,28 @@ function RelayApp({ connection, onDisconnect }: { connection: StoredConnection; 
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style={dark ? "light" : "dark"} />
+      <StatusBar style="light" />
+      <View style={styles.ticker}><Text style={styles.tickerText}>★ KEEP THE CONTEXT · LOSE THE NOISE · PRIVATE HANDOFF · LNKZ</Text></View>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel={menuOpen ? "Close navigation" : "Open navigation"} style={styles.iconButton} onPress={() => setMenuOpen(!menuOpen)}><Text style={styles.menuIcon}>☰</Text></Pressable>
-        <Text style={styles.headerBrand}>Magnet</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="New conversation" style={styles.iconButton} onPress={() => selectTab("home")}><Text style={styles.menuIcon}>＋</Text></Pressable>
+        <View><Text style={styles.headerBrand}>△ LNKZ</Text><Text style={styles.headerMeta}>CONTEXT RELAY · PRIVATE BY DEFAULT</Text></View>
+        <Pressable style={styles.refreshButton} onPress={() => void refresh()}><Text style={styles.refreshText}>↻ SYNC</Text></Pressable>
       </View>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.nav} contentContainerStyle={styles.navContent}>
+        {TABS.map((item) => (
+          <Pressable key={item.id} style={[styles.navItem, tab === item.id && styles.navItemActive]} onPress={() => selectTab(item.id)}>
+            <Text style={[styles.navIndex, tab === item.id && styles.navActiveText]}>{item.mark}</Text>
+            <Text style={[styles.navLabel, tab === item.id && styles.navActiveText]}>{item.label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+        {loading ? <ActivityIndicator color="#0b0c0b" style={styles.loader} /> : null}
         {error ? <Notice tone="error">{error}</Notice> : null}
         {notice ? <Notice>{notice}</Notice> : null}
-        {tab === "home" ? (
-          <ChatView key={selectedId ?? "new"} client={client} value={selected} loading={busy === "conversation"} onSaved={async (id) => { await refresh(); await openConversation(id); }} onImport={() => selectTab("import")} onShare={() => selectTab("handoffs")} />
-        ) : <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
-        {loading ? <ActivityIndicator color={colors.accent} style={styles.loader} /> : null}
-        {tab === "library" && <Library client={client} conversations={conversations} onOpen={openConversation} />}
+        {tab === "home" && <Home stats={stats} conversations={conversations} onOpen={openConversation} onTab={selectTab} />}
+        {tab === "library" && (
+          <Library client={client} conversations={conversations} selected={selected} selectedId={selectedId} busy={busy} onOpen={openConversation} />
+        )}
         {tab === "import" && (
           <ImportView
             client={client}
@@ -233,158 +222,103 @@ function RelayApp({ connection, onDisconnect }: { connection: StoredConnection; 
         {tab === "settings" && (
           <SettingsView connection={connection} stats={stats} connectors={connectors} client={client} disconnect={disconnect} setError={setError} setNotice={setNotice} />
         )}
-        </ScrollView>}
-      </KeyboardAvoidingView>
-      {menuOpen ? <View style={styles.menuOverlay}>
-        <Pressable accessibilityLabel="Close navigation" accessibilityRole="button" style={styles.menuBackdrop} onPress={() => setMenuOpen(false)} />
-        <ScrollView style={styles.sidebar} contentContainerStyle={styles.sidebarContent}>
-          {TABS.map((item) => <Pressable key={item.id} accessibilityRole="button" style={[styles.navItem, tab === item.id && styles.navItemActive]} onPress={() => selectTab(item.id)}><Text style={styles.navLabel}>{item.label}</Text></Pressable>)}
-          <SectionTitle>Recent conversations</SectionTitle>
-          {conversations.slice(0, 20).map((item) => <Pressable key={item.id} accessibilityRole="button" style={styles.navItem} onPress={() => void openConversation(item.id)}><Text numberOfLines={1} style={styles.rowTitle}>{item.title}</Text></Pressable>)}
-          {!conversations.length ? <Text style={styles.hint}>Your conversations will appear here.</Text> : null}
-        </ScrollView>
-      </View> : null}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Library({ client, conversations, onOpen }: {
-  client: MagnetClient;
+function Home({ stats, conversations, onOpen, onTab }: {
+  stats: Stats | null;
   conversations: ConversationSummary[];
   onOpen: (id: string) => Promise<void>;
+  onTab: (tab: Tab) => void;
 }) {
-  const { styles } = useTheme();
+  return (
+    <View>
+      <Text style={styles.eyebrow}>RELAY / LIVE WORKSPACE / READY WHEN YOU ARE</Text>
+      <Text style={styles.hero}><Text style={styles.crossed}>NOISE.</Text>{"\n"}IS NOW{"\n"}<Text style={styles.highlight}>USEFUL.</Text></Text>
+      <Text style={styles.copy}>Import a conversation, inspect what matters, and make one private handoff.</Text>
+      <View style={styles.statsGrid}>
+        <Stat label="THREADS" value={stats?.conversations ?? 0} />
+        <Stat label="MESSAGES" value={stats?.messages ?? 0} />
+        <Stat label="ACTIVE LINKS" value={stats?.activeHandoffs ?? 0} />
+        <Stat label="SOURCES" value={stats?.providers.length ?? 0} />
+      </View>
+      <SectionTitle>RECENT CONVERSATIONS</SectionTitle>
+      {conversations.slice(0, 4).map((item, index) => <ConversationRow key={item.id} item={item} index={index + 1} onPress={() => void onOpen(item.id)} />)}
+      {!conversations.length ? <Empty>Nothing here yet. Import your first conversation.</Empty> : null}
+      <View style={styles.buttonRow}>
+        <Action label="IMPORT" onPress={() => onTab("import")} secondary />
+        <Action label="CREATE HANDOFF →" onPress={() => onTab("handoffs")} />
+      </View>
+    </View>
+  );
+}
+
+function Library({ client, conversations, selected, selectedId, busy, onOpen }: {
+  client: LnkzClient;
+  conversations: ConversationSummary[];
+  selected: { conversation: Conversation; analysis: Analysis } | null;
+  selectedId: string | null;
+  busy: string;
+  onOpen: (id: string) => Promise<void>;
+}) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ConversationSummary[]>(conversations);
   const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState("");
 
   useEffect(() => { if (!query.trim()) setResults(conversations); }, [conversations, query]);
 
   const search = async () => {
     if (!query.trim()) { setResults(conversations); return; }
     setSearching(true);
-    setSearchError("");
     try { setResults((await client.searchConversations(query.trim())).matches); }
-    catch (cause) { setSearchError(messageOf(cause)); }
     finally { setSearching(false); }
   };
 
   return (
     <View>
-      <Text style={styles.pageTitle}>Your conversations</Text>
-      {searchError ? <Notice tone="error">{searchError}</Notice> : null}
-      <Field label="Search" value={query} onChangeText={setQuery} returnKeyType="search" onSubmitEditing={() => void search()} placeholder="Decisions, topics, people…" />
-      <Action label={searching ? "SearchING…" : "Search LIBRARY"} onPress={search} secondary disabled={searching} />
+      <Text style={styles.eyebrow}>LIBRARY / SAVED THREADS / SEARCHABLE CONTEXT</Text>
+      <Text style={styles.pageTitle}>THE THREAD.</Text>
+      <Field label="SEARCH" value={query} onChangeText={setQuery} returnKeyType="search" onSubmitEditing={() => void search()} placeholder="Decisions, topics, people…" />
+      <Action label={searching ? "SEARCHING…" : "SEARCH LIBRARY"} onPress={search} secondary disabled={searching} />
       <View style={styles.divider} />
       {results.map((item, index) => (
-        <ConversationRow key={item.id} item={item} index={index + 1} onPress={() => void onOpen(item.id)} />
+        <ConversationRow key={item.id} item={item} index={index + 1} selected={selectedId === item.id} onPress={() => void onOpen(item.id)} />
       ))}
       {!results.length ? <Empty>No matching conversations.</Empty> : null}
+      {busy === "conversation" ? <ActivityIndicator color="#0b0c0b" /> : null}
+      {selected ? <ConversationDetail value={selected} /> : null}
     </View>
   );
 }
 
-function ChatView({ client, value, loading, onSaved, onImport, onShare }: {
-  client: MagnetClient;
-  value: { conversation: Conversation; analysis: Analysis } | null;
-  loading: boolean;
-  onSaved: (id: string) => Promise<void>;
-  onImport: () => void;
-  onShare: () => void;
-}) {
-  const { styles, colors } = useTheme();
-  const [draft, setDraft] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [problem, setProblem] = useState("");
-  const [details, setDetails] = useState(false);
-  const scroll = useRef<ScrollView>(null);
-  const send = async () => {
-    const content = draft.trim();
-    if (!content || saving || loading) return;
-    setSaving(true); setProblem("");
-    try {
-      const result = value
-        ? await client.appendMessage(value.conversation.id, { role: "user", content })
-        : await client.createConversation(content);
-      setDraft("");
-      await onSaved(result.conversation.id);
-    } catch (cause) { setProblem(messageOf(cause)); }
-    finally { setSaving(false); }
-  };
-  return <View style={styles.chat}>
-    {value ? <View style={styles.chatToolbar}>
-      <Text numberOfLines={1} style={[styles.rowTitle, styles.flex]}>{value.conversation.title}</Text>
-      <Pressable accessibilityRole="button" style={styles.smallButton} onPress={() => setDetails(!details)}><Text style={styles.hint}>Details</Text></Pressable>
-      <Pressable accessibilityRole="button" style={styles.smallButton} onPress={onShare}><Text>Share</Text></Pressable>
-    </View> : null}
-    <ScrollView ref={scroll} contentContainerStyle={[styles.chatContent, !value && styles.chatEmpty]} keyboardShouldPersistTaps="handled" onContentSizeChange={() => { if (value && !details) scroll.current?.scrollToEnd({ animated: false }); }}>
-      {loading ? <ActivityIndicator color={colors.accent} /> : value ? <>
-        {details ? <View style={styles.detailCard}>
-          <Provenance lineage={value.conversation.lineage} />
-          <ClaimList title="Decisions" values={value.analysis.decisions.map((item) => item.text)} />
-          <ClaimList title="Open questions" values={value.analysis.openQuestions.map((item) => item.text)} />
-          <Text style={styles.hint}>Originally from {value.conversation.source.provider} · {value.conversation.messages.length} messages</Text>
-        </View> : null}
-        {value.conversation.messages.map((message) => <View key={message.id} style={[styles.message, message.role === "user" ? styles.userMessage : styles.assistantMessage]}>
-          <Text style={styles.messageRole}>{message.author || (message.role === "user" ? "You" : message.role === "assistant" ? value.conversation.source.provider : message.role)}</Text>
-          <Text selectable style={styles.messageText}>{message.content}</Text>
-        </View>)}
-      </> : <View style={styles.welcome}>
-        <Text style={styles.welcomeTitle}>What would you like to share?</Text>
-        <Text style={styles.welcomeCopy}>A conversation worth keeping. An idea worth passing on.</Text>
-        <Pressable accessibilityRole="button" style={styles.suggestion} onPress={onImport}><Text style={styles.rowTitle}>Import a conversation</Text><Text style={styles.hint}>Bring a chat or a shared link into Magnet →</Text></Pressable>
-      </View>}
-    </ScrollView>
-    <View style={styles.composerArea}>
-      {problem ? <Notice tone="error">{problem}</Notice> : null}
-      <View style={styles.composer}>
-        <TextInput accessibilityLabel="Message" multiline textAlignVertical="top" style={styles.composerInput} value={draft} onChangeText={setDraft} editable={!saving && !loading} placeholder="Write a message…" placeholderTextColor={colors.subtle} />
-        <Pressable accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: saving || loading || !draft.trim() }} style={[styles.sendButton, (saving || loading || !draft.trim()) && styles.disabled]} disabled={saving || loading || !draft.trim()} onPress={() => void send()}>{saving ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.sendIcon}>↑</Text>}</Pressable>
-      </View>
-      <Text style={styles.composerHint}>Saved to this conversation. Share a link when you’re ready. AI replies aren’t generated here.</Text>
-    </View>
-  </View>;
-}
-
-/**
- * Where this conversation came from, when it did not start here.
- *
- * A locally authored conversation shows nothing: an empty provenance block on
- * every thread would train people to ignore the one that matters. An imported
- * one names the instance rather than only the id, because an id on its own is
- * not an address and tells a person nothing.
- */
-function Provenance({ lineage }: { lineage?: Lineage }) {
-  const { styles } = useTheme();
-  if (!lineage?.originInstance && !lineage?.continuedBy && !lineage?.parentId) return null;
+function ConversationDetail({ value }: { value: { conversation: Conversation; analysis: Analysis } }) {
   return (
-    <View style={styles.provenance}>
-      <Text style={styles.detailLabel}>Where this came from</Text>
-      {lineage.originInstance ? (
-        <Text style={styles.meta}>Handed over by {lineage.originInstance}</Text>
-      ) : null}
-      {lineage.continuedBy ? (
-        <Text style={styles.meta}>Continued in {lineage.continuedBy}</Text>
-      ) : null}
-      {lineage.importedAt ? (
-        <Text style={styles.meta}>Arrived {new Date(lineage.importedAt).toLocaleString()}</Text>
-      ) : null}
-      {lineage.rootId ? (
-        <Text style={styles.hint}>Chain root {lineage.rootId}</Text>
-      ) : null}
+    <View style={styles.detailCard}>
+      <Text style={styles.detailLabel}>SELECTED THREAD</Text>
+      <Text style={styles.detailTitle}>{value.conversation.title}</Text>
+      <Text style={styles.meta}>{value.conversation.source.provider} · {value.analysis.approxTokens} APPROX TOKENS</Text>
+      <ClaimList title="DECISIONS" values={value.analysis.decisions.map((item) => item.text)} />
+      <ClaimList title="OPEN QUESTIONS" values={value.analysis.openQuestions.map((item) => item.text)} />
+      <SectionTitle>TRANSCRIPT</SectionTitle>
+      {value.conversation.messages.map((message) => (
+        <View key={message.id} style={[styles.message, message.role === "assistant" && styles.assistantMessage]}>
+          <Text style={styles.messageRole}>{message.author || message.role}</Text>
+          <Text style={styles.messageText}>{message.content}</Text>
+        </View>
+      ))}
     </View>
   );
 }
 
 function ImportView({ client, busy, setBusy, onImported, setError }: {
-  client: MagnetClient;
+  client: LnkzClient;
   busy: string;
   setBusy: (value: string) => void;
   onImported: (conversation: ConversationSummary) => Promise<void>;
   setError: (value: string) => void;
 }) {
-  const { styles, colors } = useTheme();
   const [payload, setPayload] = useState("");
   const [tags, setTags] = useState("");
 
@@ -408,117 +342,19 @@ function ImportView({ client, busy, setBusy, onImported, setError }: {
 
   return (
     <View>
-      <Text style={styles.pageTitle}>Bring a conversation</Text>
-      <Field label="Tags (optional)" value={tags} onChangeText={setTags} placeholder="research, launch" />
-      <Text style={styles.fieldLabel}>Conversation or export</Text>
-      <TextInput multiline textAlignVertical="top" style={styles.textarea} value={payload} onChangeText={setPayload} placeholder="Paste ChatGPT, Claude, Gemini, Markdown, JSON, or plain text…" placeholderTextColor={colors.subtle} />
-      <Text style={styles.hint}>Magnet detects the format and preserves the original message order.</Text>
-      <Action label={busy === "import" ? "Importing…" : "Import conversation →"} onPress={run} disabled={busy === "import"} />
-      <View style={styles.divider} />
-      <ReceiveLink client={client} onReceived={onImported} setError={setError} />
-    </View>
-  );
-}
-
-/**
- * Taking a handoff someone sent you.
- *
- * Two different things can happen with a link, and conflating them is how the
- * chain gets lost. Importing keeps a copy and records where it came from.
- * Continuing does that and adds your turn as a new conversation that says which
- * client carried the work forward. Editing an imported copy afterwards looks
- * the same on screen and leaves nothing saying the work moved on.
- *
- * Preview first, always. A share link is a bearer link: whoever holds it can
- * redeem it, and every redemption spends one of its uses. Showing what is
- * inside before committing means nobody burns a one-use link finding out.
- */
-function ReceiveLink({ client, onReceived, setError }: {
-  client: MagnetClient;
-  onReceived: (conversation: ConversationSummary) => Promise<void>;
-  setError: (value: string) => void;
-}) {
-  const { styles, colors } = useTheme();
-  const [url, setUrl] = useState("");
-  const [provider, setProvider] = useState("");
-  const [role, setRole] = useState<"user" | "assistant">("user");
-  const [reply, setReply] = useState("");
-  const [preview, setPreview] = useState<ImportPreview | null>(null);
-  const [working, setWorking] = useState("");
-
-  const look = async () => {
-    if (!url.trim()) { setError("Paste the handoff link first."); return; }
-    setWorking("preview");
-    setError("");
-    try {
-      setPreview(await client.previewLink(url.trim()));
-    } catch (cause) {
-      setPreview(null);
-      setError(messageOf(cause));
-    } finally {
-      setWorking("");
-    }
-  };
-
-  const take = async (mode: "copy" | "continue") => {
-    if (!preview || working) return;
-    if (!url.trim()) { setError("Paste the handoff link first."); return; }
-    if (mode === "continue" && !reply.trim()) { setError("Write the turn you are adding."); return; }
-    if (mode === "continue" && !provider.trim()) { setError("Name the client you are continuing in."); return; }
-    setWorking(mode);
-    setError("");
-    try {
-      const result = mode === "copy"
-        ? await client.importLink(url.trim())
-        : await client.continueFromLink({ url: url.trim(), provider: provider.trim(), content: reply.trim(), role });
-      setUrl("");
-      setReply("");
-      setPreview(null);
-      await onReceived(result.conversation);
-    } catch (cause) {
-      // Deliberately leaves the link and the reply in place. A failed redemption
-      // is often a link that expired or a relay that was asleep, and retyping
-      // a paragraph to retry is the wrong tax for that.
-      setError(messageOf(cause));
-    } finally {
-      setWorking("");
-    }
-  };
-
-  return (
-    <View>
-      <Text style={styles.eyebrow}>Open a shared link</Text>
-      <Field label="Handoff link" value={url} onChangeText={(value) => { setUrl(value); setPreview(null); }} editable={!working} autoCapitalize="none" placeholder="https://magnet.example.com/share/…" />
-      <Action label={working === "preview" ? "Looking…" : "Preview link"} onPress={() => void look()} secondary disabled={Boolean(working)} />
-      {preview ? (
-        <View style={styles.provenance}>
-          <Text style={styles.detailLabel}>{preview.preview.title}</Text>
-          <Text style={styles.meta}>{preview.preview.provider} · {preview.preview.messages} MESSAGES</Text>
-          <Text style={styles.meta}>From {preview.origin.instance}</Text>
-          <Text style={styles.meta}>
-            {preview.preview.usesRemaining} {preview.preview.usesRemaining === 1 ? "USE" : "USES"} LEFT · EXPIRES {new Date(preview.preview.expiresAt).toLocaleString()}
-            {preview.preview.redact ? " · REDACTED" : ""}
-          </Text>
-          <Text style={styles.hint}>Looking is free. Importing or continuing spends one use.</Text>
-          {preview.warnings.map((warning) => <Text key={warning} style={styles.hint}>{warning}</Text>)}
-        </View>
-      ) : null}
-      <Field label="Continue in" value={provider} onChangeText={setProvider} autoCapitalize="none" placeholder="claude, gemini, chatgpt…" />
-      <Text style={styles.fieldLabel}>Your turn (for continuing)</Text>
-      <View style={styles.buttonRow}>
-        <Action label={role === "user" ? "✓ MY MESSAGE" : "MY MESSAGE"} onPress={() => setRole("user")} secondary />
-        <Action label={role === "assistant" ? "✓ MODEL RESPONSE" : "MODEL RESPONSE"} onPress={() => setRole("assistant")} secondary />
-      </View>
-      <TextInput multiline textAlignVertical="top" style={styles.textarea} value={reply} onChangeText={setReply} placeholder="What you are adding on top of their work…" placeholderTextColor={colors.subtle} />
-      <Action label={working === "continue" ? "Continuing…" : "Continue it here →"} onPress={() => void take("continue")} disabled={Boolean(working) || !preview} />
-      <Action label={working === "copy" ? "Importing…" : "Just keep a copy"} onPress={() => void take("copy")} secondary disabled={Boolean(working) || !preview} />
-      <Text style={styles.hint}>Preview first, then choose one action. Receiving spends one use. Magnet saves the turn you enter; it does not call the named model.</Text>
+      <Text style={styles.eyebrow}>IMPORT / PASTE THE USEFUL PART / SAVED TO YOUR RELAY</Text>
+      <Text style={styles.pageTitle}>BRING IT{"\n"}<Text style={styles.highlight}>WITH YOU.</Text></Text>
+      <Field label="TAGS (OPTIONAL)" value={tags} onChangeText={setTags} placeholder="research, launch" />
+      <Text style={styles.fieldLabel}>CONVERSATION OR EXPORT</Text>
+      <TextInput multiline textAlignVertical="top" style={styles.textarea} value={payload} onChangeText={setPayload} placeholder="Paste ChatGPT, Claude, Gemini, Markdown, JSON, or plain text…" placeholderTextColor="#77776f" />
+      <Text style={styles.hint}>LNKZ detects the format and preserves the original message order.</Text>
+      <Action label={busy === "import" ? "IMPORTING…" : "IMPORT CONVERSATION →"} onPress={run} disabled={busy === "import"} />
     </View>
   );
 }
 
 function HandoffsView({ client, conversations, handoffs, selectedId, onSelect, refresh, setError, setNotice }: {
-  client: MagnetClient;
+  client: LnkzClient;
   conversations: ConversationSummary[];
   handoffs: HandoffSummary[];
   selectedId: string | null;
@@ -527,7 +363,6 @@ function HandoffsView({ client, conversations, handoffs, selectedId, onSelect, r
   setError: (value: string) => void;
   setNotice: (value: string) => void;
 }) {
-  const { styles, colors } = useTheme();
   const [ttl, setTtl] = useState("60");
   const [uses, setUses] = useState("3");
   const [audience, setAudience] = useState("");
@@ -557,66 +392,61 @@ function HandoffsView({ client, conversations, handoffs, selectedId, onSelect, r
         redact,
       });
       setIssued(result);
-      setNotice("Share link created.");
+      setNotice("Private handoff created.");
       await refresh();
     } catch (cause) { setError(messageOf(cause)); }
     finally { setWorking(""); }
   };
 
   const share = async (value: string) => {
-    try {
     if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.clipboard) {
       await navigator.clipboard.writeText(value);
-      setNotice("Share link copied.");
+      setNotice("Handoff link copied.");
       return;
     }
-      if (Platform.OS === "web") {
-        setNotice("Select and copy the link shown below, then paste it into Import on the other device.");
-      } else await Share.share({ message: value });
-    } catch {
-      setNotice("Select and copy the link shown below, then paste it into Import on the other device.");
-    }
+    await Share.share({ message: value });
   };
 
   const revoke = async (id: string) => {
     setWorking(id); setError("");
-    try { await client.revokeHandoff(id); setNotice("Share link revoked."); await refresh(); }
+    try { await client.revokeHandoff(id); setNotice("Handoff revoked."); await refresh(); }
     catch (cause) { setError(messageOf(cause)); }
     finally { setWorking(""); }
   };
 
   return (
     <View>
-      <Text style={styles.pageTitle}>Share a conversation</Text>
-      <SectionTitle>1 · choose the thread</SectionTitle>
+      <Text style={styles.eyebrow}>HANDOFF / BOUNDED CONTEXT / EXPIRING ACCESS</Text>
+      <Text style={styles.pageTitle}>MAKE THE{"\n"}<Text style={styles.highlight}>HANDOFF.</Text></Text>
+      <SectionTitle>1 · CHOOSE THE THREAD</SectionTitle>
       {conversations.map((item, index) => (
         <ConversationRow key={item.id} item={item} index={index + 1} selected={chosen?.id === item.id} onPress={() => { onSelect(item.id); setIssued(null); setPacket(null); }} />
       ))}
       {!chosen ? <Empty>Import a conversation before creating a handoff.</Empty> : null}
       {chosen ? (
         <>
-          <SectionTitle>2 · review the packet</SectionTitle>
-          <Action label={working === "packet" ? "Building…" : "Build context packet"} onPress={buildPacket} secondary disabled={Boolean(working)} />
+          <SectionTitle>2 · REVIEW THE PACKET</SectionTitle>
+          <Action label={working === "packet" ? "BUILDING…" : "BUILD CONTEXT PACKET"} onPress={buildPacket} secondary disabled={Boolean(working)} />
           {packet ? <View style={styles.packet}><Text style={styles.meta}>{packet.usedTokens} / {packet.budgetTokens} TOKENS</Text><Text style={styles.packetText}>{packet.markdown}</Text></View> : null}
-          <SectionTitle>3 · set the boundary</SectionTitle>
-          <Field label="Audience" value={audience} onChangeText={setAudience} placeholder="Claude · My space" />
+          <SectionTitle>3 · SET THE BOUNDARY</SectionTitle>
+          <Field label="AUDIENCE" value={audience} onChangeText={setAudience} placeholder="Claude · My space" />
           <View style={styles.fieldRow}>
-            <View style={styles.fieldHalf}><Field label="Expires in minutes" value={ttl} onChangeText={setTtl} keyboardType="number-pad" /></View>
-            <View style={styles.fieldHalf}><Field label="Max uses" value={uses} onChangeText={setUses} keyboardType="number-pad" /></View>
+            <View style={styles.fieldHalf}><Field label="EXPIRES IN MINUTES" value={ttl} onChangeText={setTtl} keyboardType="number-pad" /></View>
+            <View style={styles.fieldHalf}><Field label="MAX USES" value={uses} onChangeText={setUses} keyboardType="number-pad" /></View>
           </View>
-          <View style={styles.switchRow}><View style={styles.switchCopy}><Text style={styles.switchTitle}>Redact sensitive text</Text><Text style={styles.hint}>Filter common emails and credentials. Review the content before sharing.</Text></View><Switch value={redact} onValueChange={setRedact} trackColor={{ false: colors.strong, true: colors.accent }} /></View>
-          <Action label={working === "handoff" ? "Creating…" : "Create share link →"} onPress={create} disabled={Boolean(working)} />
-          {issued ? <View style={styles.successCard}><Text style={styles.detailLabel}>EXPIRING Handoff link</Text><Text selectable style={styles.link}>{issued.shareUrl}</Text><Action label="Copy or share link" onPress={() => void share(issued.shareUrl)} secondary /></View> : null}
+          <View style={styles.switchRow}><View><Text style={styles.switchTitle}>REDACT SENSITIVE TEXT</Text><Text style={styles.hint}>Remove emails, secrets, and bearer tokens.</Text></View><Switch value={redact} onValueChange={setRedact} trackColor={{ false: "#b8b5ac", true: "#719068" }} /></View>
+          <Action label={working === "handoff" ? "CREATING…" : "CREATE PRIVATE HANDOFF →"} onPress={create} disabled={Boolean(working)} />
+          {issued ? <View style={styles.successCard}><Text style={styles.detailLabel}>EXPIRING HANDOFF LINK</Text><Text selectable style={styles.link}>{issued.shareUrl}</Text><Action label="COPY OR SHARE LINK" onPress={() => void share(issued.shareUrl)} secondary /></View> : null}
         </>
       ) : null}
-      <SectionTitle>Issued handoffs</SectionTitle>
+      <SectionTitle>ISSUED HANDOFFS</SectionTitle>
       {handoffs.map((handoff) => (
         <View key={handoff.id} style={styles.handoffRow}>
-          <View style={styles.flex}><Text style={styles.rowTitle}>{handoff.audience || "PRIVATE LINK"}</Text><Text style={styles.meta}>{handoff.active ? "ACTIVE" : handoff.revokedAt ? "RevokeD" : "EXPIRED OR SPENT"} · {handoff.uses}/{handoff.maxUses} USES · {shortDate(handoff.expiresAt)}</Text></View>
-          {handoff.active ? <Pressable style={styles.revokeButton} onPress={() => void revoke(handoff.id)} disabled={working === handoff.id}><Text style={styles.revokeText}>Revoke</Text></Pressable> : null}
+          <View style={styles.flex}><Text style={styles.rowTitle}>{handoff.audience || "PRIVATE LINK"}</Text><Text style={styles.meta}>{handoff.active ? "ACTIVE" : handoff.revokedAt ? "REVOKED" : "EXPIRED OR SPENT"} · {handoff.uses}/{handoff.maxUses} USES · {shortDate(handoff.expiresAt)}</Text></View>
+          {handoff.active ? <Pressable style={styles.revokeButton} onPress={() => void revoke(handoff.id)} disabled={working === handoff.id}><Text style={styles.revokeText}>REVOKE</Text></Pressable> : null}
         </View>
       ))}
-      {!handoffs.length ? <Empty>No shared links yet.</Empty> : null}
+      {!handoffs.length ? <Empty>No handoffs issued yet.</Empty> : null}
     </View>
   );
 }
@@ -625,42 +455,42 @@ function SettingsView({ connection, stats, connectors, client, disconnect, setEr
   connection: StoredConnection;
   stats: Stats | null;
   connectors: ConnectorStatus[];
-  client: MagnetClient;
+  client: LnkzClient;
   disconnect: () => Promise<void>;
   setError: (value: string) => void;
   setNotice: (value: string) => void;
 }) {
-  const { styles } = useTheme();
   const [testing, setTesting] = useState(false);
   const retest = async () => {
     setTesting(true); setError("");
-    try { await client.checkConnection(); setNotice("Connection verified."); }
+    try { await client.stats(); setNotice("Connection verified."); }
     catch (cause) { setError(messageOf(cause)); }
     finally { setTesting(false); }
   };
   return (
     <View>
-      <Text style={styles.pageTitle}>Settings</Text>
-      <View style={styles.detailCard}><Text style={styles.detailLabel}>Server</Text><Text selectable style={styles.link}>{connection.baseUrl}</Text><Text style={styles.meta}>{stats ? "CONNECTED" : "STATUS UNKNOWN"}</Text></View>
-      <Action label={testing ? "Testing…" : "Retest connection"} onPress={retest} secondary disabled={testing} />
-      <SectionTitle>Connected sources</SectionTitle>
-      {connectors.filter((connector) => connector.configured).map((connector) => (
+      <Text style={styles.eyebrow}>SETTINGS / CONNECTION / CONNECTOR READINESS</Text>
+      <Text style={styles.pageTitle}>YOUR RELAY.</Text>
+      <View style={styles.detailCard}><Text style={styles.detailLabel}>SERVER</Text><Text selectable style={styles.link}>{connection.baseUrl}</Text><Text style={styles.meta}>{stats ? "CONNECTED" : "STATUS UNKNOWN"}</Text></View>
+      <Action label={testing ? "TESTING…" : "RETEST CONNECTION"} onPress={retest} secondary disabled={testing} />
+      <SectionTitle>CONNECTED SOURCES</SectionTitle>
+      {connectors.map((connector) => (
         <View key={connector.id} style={styles.connectorRow}>
           <View style={[styles.dot, connector.configured && styles.dotOn]} />
           <View style={styles.flex}><Text style={styles.rowTitle}>{connector.label}</Text><Text style={styles.meta}>{connector.detail}</Text></View>
         </View>
       ))}
       <View style={styles.divider} />
-      <Pressable style={styles.disconnectButton} onPress={() => void disconnect()}><Text style={styles.disconnectText}>Disconnect this device</Text></Pressable>
+      <Pressable style={styles.disconnectButton} onPress={() => void disconnect()}><Text style={styles.disconnectText}>DISCONNECT THIS DEVICE</Text></Pressable>
       <Text style={styles.hint}>Disconnecting clears the saved server URL and API key from this device.</Text>
     </View>
   );
 }
 
-function ConversationRow({ item, selected, onPress }: { item: ConversationSummary; index: number; selected?: boolean; onPress: () => void }) {
-  const { styles } = useTheme();
+function ConversationRow({ item, index, selected, onPress }: { item: ConversationSummary; index: number; selected?: boolean; onPress: () => void }) {
   return (
     <Pressable style={[styles.conversationRow, selected && styles.conversationSelected]} onPress={onPress}>
+      <Text style={styles.rowIndex}>{String(index).padStart(2, "0")}</Text>
       <View style={styles.sourceBadge}><Text style={styles.sourceText}>{item.source.provider.slice(0, 2).toUpperCase()}</Text></View>
       <View style={styles.flex}><Text numberOfLines={2} style={styles.rowTitle}>{item.title}</Text><Text style={styles.meta}>{item.messageCount} MESSAGES · {shortDate(item.updatedAt)}</Text></View>
       <Text style={styles.arrow}>→</Text>
@@ -669,27 +499,22 @@ function ConversationRow({ item, selected, onPress }: { item: ConversationSummar
 }
 
 function Field(props: ComponentProps<typeof TextInput> & { label: string }) {
-  const { styles, colors } = useTheme();
   const { label, style, ...inputProps } = props;
-  return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput accessibilityLabel={label} placeholderTextColor={colors.subtle} style={[styles.input, style]} {...inputProps} /></View>;
+  return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput placeholderTextColor="#77776f" style={[styles.input, style]} {...inputProps} /></View>;
 }
 
 function Action({ label, onPress, secondary, disabled }: { label: string; onPress: () => void | Promise<void>; secondary?: boolean; disabled?: boolean }) {
-  const { styles } = useTheme();
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(disabled) }} style={[styles.action, secondary && styles.actionSecondary, disabled && styles.disabled]} onPress={() => void onPress()} disabled={disabled}><Text style={[styles.actionText, secondary && styles.actionSecondaryText]}>{label}</Text></Pressable>;
+  return <Pressable style={[styles.action, secondary && styles.actionSecondary, disabled && styles.disabled]} onPress={() => void onPress()} disabled={disabled}><Text style={[styles.actionText, secondary && styles.actionSecondaryText]}>{label}</Text></Pressable>;
 }
 
 function Notice({ children, tone }: { children: ReactNode; tone?: "error" }) {
-  const { styles } = useTheme();
   return <View style={[styles.notice, tone === "error" && styles.errorNotice]}><Text style={styles.noticeText}>{children}</Text></View>;
 }
 
-function SectionTitle({ children }: { children: ReactNode }) {
-  const { styles } = useTheme(); return <Text style={styles.sectionTitle}>{children}</Text>; }
-function Empty({ children }: { children: ReactNode }) {
-  const { styles } = useTheme(); return <Text style={styles.empty}>{children}</Text>; }
+function SectionTitle({ children }: { children: ReactNode }) { return <Text style={styles.sectionTitle}>{children}</Text>; }
+function Empty({ children }: { children: ReactNode }) { return <Text style={styles.empty}>{children}</Text>; }
+function Stat({ label, value }: { label: string; value: number }) { return <View style={styles.stat}><Text style={styles.statLabel}>{label}</Text><Text style={styles.statValue}>{value}</Text></View>; }
 function ClaimList({ title, values }: { title: string; values: string[] }) {
-  const { styles } = useTheme();
   if (!values.length) return null;
   return <View><SectionTitle>{title}</SectionTitle>{values.slice(0, 5).map((value, index) => <Text key={`${title}-${index}`} style={styles.claim}>• {value}</Text>)}</View>;
 }
@@ -699,8 +524,87 @@ function shortDate(value: string): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase();
 }
 
-
-function Text({ style, ...props }: ComponentProps<typeof NativeText>) {
-  const { colors } = useTheme();
-  return <NativeText {...props} style={[{ color: colors.text }, style]} />;
-}
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: "#0b0c0b" },
+  boot: { flex: 1, gap: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#f4f1e9" },
+  ticker: { height: 32, justifyContent: "center", overflow: "hidden", paddingHorizontal: 12, backgroundColor: "#0b0c0b" },
+  tickerText: { color: "#f4f1e9", fontSize: 9, fontWeight: "800", letterSpacing: 1.4 },
+  mono: { fontSize: 10, fontWeight: "800", letterSpacing: 1.5 },
+  connectionPage: { flexGrow: 1, padding: 22, paddingBottom: 50, backgroundColor: "#f4f1e9" },
+  brandMark: { fontSize: 28, fontWeight: "900" },
+  connectionTitle: { marginTop: 4, fontSize: 34, fontWeight: "900", letterSpacing: -1.5 },
+  eyebrow: { alignSelf: "flex-start", marginBottom: 18, paddingHorizontal: 8, paddingVertical: 6, borderWidth: 1, borderColor: "#0b0c0b", fontSize: 8, fontWeight: "800", letterSpacing: 1 },
+  hero: { marginBottom: 16, fontSize: 48, lineHeight: 45, fontWeight: "900", letterSpacing: -2 },
+  crossed: { textDecorationLine: "line-through", color: "#66665f" },
+  highlight: { backgroundColor: "#dce8d6" },
+  copy: { marginBottom: 20, maxWidth: 420, fontSize: 13, lineHeight: 19 },
+  field: { marginBottom: 14 },
+  fieldLabel: { marginBottom: 6, fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
+  input: { minHeight: 46, borderWidth: 2, borderColor: "#0b0c0b", paddingHorizontal: 12, backgroundColor: "#ebe8df", color: "#0b0c0b", fontSize: 13 },
+  textarea: { minHeight: 220, borderWidth: 2, borderColor: "#0b0c0b", padding: 12, backgroundColor: "#ebe8df", color: "#0b0c0b", fontSize: 12, lineHeight: 18 },
+  hint: { marginTop: 8, color: "#66665f", fontSize: 10, lineHeight: 15 },
+  notice: { marginBottom: 14, borderWidth: 1, borderColor: "#0b0c0b", padding: 10, backgroundColor: "#dce8d6" },
+  errorNotice: { backgroundColor: "#f2b39c" },
+  noticeText: { fontSize: 11, fontWeight: "700", lineHeight: 16 },
+  action: { minHeight: 46, alignItems: "center", justifyContent: "center", marginTop: 10, borderWidth: 2, borderColor: "#0b0c0b", backgroundColor: "#0b0c0b", paddingHorizontal: 14 },
+  actionSecondary: { backgroundColor: "#f4f1e9" },
+  actionText: { color: "#f4f1e9", fontSize: 10, fontWeight: "900", letterSpacing: .8 },
+  actionSecondaryText: { color: "#0b0c0b" },
+  disabled: { opacity: .5 },
+  header: { minHeight: 76, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 2, borderBottomColor: "#0b0c0b", paddingLeft: 14, backgroundColor: "#f4f1e9" },
+  headerBrand: { fontSize: 24, fontWeight: "900", letterSpacing: -1 },
+  headerMeta: { marginTop: 3, fontSize: 7, fontWeight: "800", letterSpacing: 1 },
+  refreshButton: { alignSelf: "stretch", justifyContent: "center", borderLeftWidth: 2, borderLeftColor: "#0b0c0b", paddingHorizontal: 16, backgroundColor: "#dce8d6" },
+  refreshText: { fontSize: 10, fontWeight: "900" },
+  nav: { flexGrow: 0, maxHeight: 62, backgroundColor: "#f4f1e9", borderBottomWidth: 2, borderBottomColor: "#0b0c0b" },
+  navContent: { minWidth: "100%" },
+  navItem: { minWidth: 92, minHeight: 60, justifyContent: "center", gap: 4, borderRightWidth: 1, borderRightColor: "#0b0c0b", paddingHorizontal: 10 },
+  navItemActive: { backgroundColor: "#0b0c0b" },
+  navIndex: { fontSize: 8, fontWeight: "700" },
+  navLabel: { fontSize: 9, fontWeight: "900" },
+  navActiveText: { color: "#f4f1e9" },
+  page: { flexGrow: 1, minHeight: "100%", padding: 16, paddingBottom: 80, backgroundColor: "#f4f1e9" },
+  loader: { marginBottom: 12 },
+  pageTitle: { marginBottom: 20, fontSize: 40, lineHeight: 40, fontWeight: "900", letterSpacing: -1.5 },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", marginVertical: 12, borderTopWidth: 1, borderLeftWidth: 1, borderColor: "#0b0c0b" },
+  stat: { width: "50%", minHeight: 82, justifyContent: "space-between", borderRightWidth: 1, borderBottomWidth: 1, borderColor: "#0b0c0b", padding: 12 },
+  statLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 1 },
+  statValue: { fontSize: 28, fontWeight: "900" },
+  sectionTitle: { marginTop: 22, marginBottom: 9, borderBottomWidth: 1, borderBottomColor: "#0b0c0b", paddingBottom: 7, fontSize: 10, fontWeight: "900", letterSpacing: 1 },
+  conversationRow: { minHeight: 66, flexDirection: "row", alignItems: "center", gap: 9, borderBottomWidth: 1, borderBottomColor: "#0b0c0b", paddingVertical: 10 },
+  conversationSelected: { backgroundColor: "#dce8d6", paddingHorizontal: 8 },
+  rowIndex: { width: 20, fontSize: 9, fontWeight: "800" },
+  sourceBadge: { width: 32, height: 32, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#0b0c0b", backgroundColor: "#ebe8df" },
+  sourceText: { fontSize: 9, fontWeight: "900" },
+  flex: { flex: 1 },
+  rowTitle: { fontSize: 12, fontWeight: "800", lineHeight: 16 },
+  meta: { marginTop: 3, color: "#66665f", fontSize: 8, fontWeight: "700", lineHeight: 12, letterSpacing: .25 },
+  arrow: { fontSize: 18, fontWeight: "900" },
+  buttonRow: { flexDirection: "row", gap: 8, marginTop: 14 },
+  divider: { height: 1, marginVertical: 18, backgroundColor: "#0b0c0b" },
+  empty: { borderWidth: 1, borderColor: "#0b0c0b", padding: 14, color: "#66665f", fontSize: 11 },
+  detailCard: { marginTop: 24, borderWidth: 2, borderColor: "#0b0c0b", padding: 14, backgroundColor: "#ebe8df" },
+  detailLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 1 },
+  detailTitle: { marginTop: 8, fontSize: 19, fontWeight: "900", lineHeight: 23 },
+  claim: { marginBottom: 6, fontSize: 11, lineHeight: 16 },
+  message: { marginBottom: 9, borderWidth: 1, borderColor: "#0b0c0b", padding: 10, backgroundColor: "#f4f1e9" },
+  assistantMessage: { backgroundColor: "#dce8d6" },
+  messageRole: { marginBottom: 5, fontSize: 8, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase" },
+  messageText: { fontSize: 11, lineHeight: 17 },
+  fieldRow: { flexDirection: "row", gap: 10 },
+  fieldHalf: { flex: 1 },
+  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginVertical: 12, borderWidth: 1, borderColor: "#0b0c0b", padding: 12 },
+  switchTitle: { fontSize: 9, fontWeight: "900", letterSpacing: .7 },
+  packet: { marginTop: 10, maxHeight: 280, borderWidth: 1, borderColor: "#0b0c0b", padding: 12, backgroundColor: "#ebe8df" },
+  packetText: { marginTop: 8, fontSize: 10, lineHeight: 15 },
+  successCard: { marginTop: 14, borderWidth: 2, borderColor: "#0b0c0b", padding: 12, backgroundColor: "#dce8d6" },
+  link: { marginTop: 7, fontSize: 10, fontWeight: "700", lineHeight: 15 },
+  handoffRow: { minHeight: 66, flexDirection: "row", alignItems: "center", gap: 8, borderBottomWidth: 1, borderBottomColor: "#0b0c0b", paddingVertical: 10 },
+  revokeButton: { borderWidth: 1, borderColor: "#0b0c0b", paddingHorizontal: 9, paddingVertical: 7, backgroundColor: "#ef8a63" },
+  revokeText: { fontSize: 8, fontWeight: "900" },
+  connectorRow: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderBottomColor: "#0b0c0b", paddingVertical: 10 },
+  dot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: "#0b0c0b", backgroundColor: "#b8b5ac" },
+  dotOn: { backgroundColor: "#719068" },
+  disconnectButton: { minHeight: 44, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#0b0c0b", backgroundColor: "#ef8a63" },
+  disconnectText: { fontSize: 9, fontWeight: "900", letterSpacing: .8 },
+});

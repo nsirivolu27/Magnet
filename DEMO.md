@@ -6,30 +6,6 @@ queries it, transfers a conversation and appends a continuation. It prints no
 keys or bearer links. `pnpm demo --record` refreshes the checked-in terminal
 recording and text sample from actual responses.
 
-## The whole journey, asserted
-
-`pnpm demo` narrates a transfer for a viewer. `pnpm verify:journey` proves one,
-which is a different job: it starts two relays on separate databases with
-separate keys and walks A to B and back with hard assertions, then reports the
-step that failed rather than a generic message.
-
-```bash
-pnpm build
-pnpm verify:journey
-```
-
-It covers what the product claims. Each relay refuses the other's key. A's
-conversation id means nothing on B. A one-use link survives being previewed
-repeatedly and is spent by a single import. Redaction strips a planted
-credential on the way out while leaving A's own copy intact. B continues the
-work under another provider, appends a turn, and hands it back, and A resolves
-the returned copy to its own original rather than to an id that only ever
-existed on B. A revoked link closes redemption, preview, import, dry run import
-and continuation. Both relays restart with their data and lineage intact.
-
-It does not check the mobile layout. Nothing in a REST harness can see a
-screen, so phone-width behaviour stays a manual check.
-
 ## The same transfer, one command at a time
 
 The following Bash commands are local-only. Use three terminals in the repository
@@ -38,13 +14,13 @@ after `pnpm build`. Choose unused data paths if you already have demo databases.
 Terminal A:
 
 ```bash
-NODE_ENV=development HOST=127.0.0.1 PORT=3100 MAGNET_ALLOW_UNAUTHENTICATED=true MAGNET_DB_FILE=.data/demo-a.db MAGNET_PUBLIC_BASE_URL=http://127.0.0.1:3100 pnpm start
+NODE_ENV=development HOST=127.0.0.1 PORT=3100 LNKZ_ALLOW_UNAUTHENTICATED=true LNKZ_DB_FILE=.data/demo-a.db LNKZ_PUBLIC_BASE_URL=http://127.0.0.1:3100 pnpm start
 ```
 
 Terminal B:
 
 ```bash
-NODE_ENV=development HOST=127.0.0.1 PORT=3101 MAGNET_ALLOW_UNAUTHENTICATED=true MAGNET_DB_FILE=.data/demo-b.db MAGNET_PUBLIC_BASE_URL=http://127.0.0.1:3101 MAGNET_TRANSFER_ALLOW_PRIVATE=true pnpm start
+NODE_ENV=development HOST=127.0.0.1 PORT=3101 LNKZ_ALLOW_UNAUTHENTICATED=true LNKZ_DB_FILE=.data/demo-b.db LNKZ_PUBLIC_BASE_URL=http://127.0.0.1:3101 LNKZ_TRANSFER_ALLOW_PRIVATE=true pnpm start
 ```
 
 Terminal C:
