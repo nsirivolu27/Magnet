@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Magnet",
+    "slug": "magnet-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#181818",
+    "scheme": ["magnet", "lnkz"],
+    "experiments": {
+      "baseUrl": "/mobile"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.lnkz.mobile"
+    },
+    "android": {
+      "package": "app.lnkz.mobile"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
