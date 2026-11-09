@@ -1,22 +1,42 @@
 # Magnet roadmap
 
-## MVP: an end-to-end encrypted messenger for AI content
+## Current MVP: pass a conversation and keep its context
+
+The first release is a simple conversation aggregator: ChatGPT → Magnet →
+Claude, another AI, or another person. Finish this text workflow before expanding
+the messenger. The interface is black, white and neutral gray, with no purple.
+
+Import one conversation, review its messages and any missing-content warnings,
+then copy/download the full saved transcript for another AI or create a readable
+expiring link for a person. Preserve roles, order, code and source information.
+Copying/uploading into an AI is explicit; opening that AI alone sends nothing.
+
+Implemented locally: transcript and export import, archive selection in the web
+app, full-text continuation export, a recipient reader, and two-relay transfer.
+Public deployment and validation in the user's Replit environment remain open.
+The current relay is plaintext, not end-to-end encrypted. It does not carry
+attachments, hidden model memory, or automatic access to third-party chat accounts.
+
+See [the product brief and Replit handoff](REPLIT_HANDOFF.md) for the current
+user journey, acceptance criteria, and the next implementation pass.
+
+## Later direction: an end-to-end encrypted messenger for AI content
 
 Magnet lets someone take AI-created content and its relevant context from a source
 platform and share it with a receiver: another person, an app, an AI platform,
 or another receiving system. Conversation handoffs are one supported content
 flow within this product, not the limit of the product.
 
-**Product promise:** create anywhere, share privately through Magnet, receive and
-continue where it is useful. Magnet is a messenger, with end-to-end encrypted
-one-to-one conversations as the first release, not a public file-sharing portal.
+**Longer-term product direction:** create anywhere, share privately through
+Magnet, receive and continue where it is useful. End-to-end encrypted one-to-one
+messaging is a later milestone after the text conversation-passing MVP.
 
 Messages, AI context and attachments must be encrypted on the sending device
 and decrypted only at authorized receiving endpoints. The Magnet delivery service
 must not hold content-decryption keys. The current relay is not E2EE; this is a
 new implementation requirement, not a description of existing protection.
 
-This is the revised MVP definition, not a claim that every capability below is
+This is the broader future direction, not a claim that every capability below is
 implemented. ARCHITECTURE.md describes the current implementation.
 
 ## The sharing flow

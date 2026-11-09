@@ -49,7 +49,7 @@ try {
     assert.match(asset.headers.get("content-type"), /javascript/);
     assert.ok((await asset.text()).length > 0);
   }
-  for (const [path, title] of [["/", "Magnet | Carry the conversation forward"], ["/console.html", "Magnet Console"]]) {
+  for (const [path, title] of [["/", "Magnet | Carry the conversation forward"], ["/console.html", "Magnet Console"], ["/receive.html", "Shared conversation | Magnet"]]) {
     const response = await fetch(base + path);
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type"), /text\/html/);
@@ -79,11 +79,17 @@ try {
   const packet = await api("/api/context/packet", { conversationIds: [id], budgetTokens: 1000, includeExternal: false });
   assert.ok(packet.packet.markdown.includes("one repository"));
   const handoff = await api(`/api/conversations/${id}/handoffs`, { ttlMinutes: 5, maxUses: 1 });
+  for (let i = 0; i < 2; i++) {
+    const preview = await fetch(`${base}/share/${handoff.token}/preview`);
+    assert.equal(preview.status, 200);
+    assert.equal((await preview.json()).preview.usesRemaining, 1);
+  }
   const redeemed = await fetch(`${base}/share/${handoff.token}`);
   assert.equal(redeemed.status, 200);
   assert.equal(redeemed.headers.get("cache-control"), "no-store");
   assert.equal((await redeemed.json()).conversation.id, id);
   assert.equal((await fetch(`${base}/share/${handoff.token}`)).status, 404);
+  assert.equal((await fetch(`${base}/share/${handoff.token}/preview`)).status, 410);
   assert.equal(logs.includes(key) || logs.includes(handoff.token), false, "logs must omit bearer secrets");
   console.log("Web/mobile pages and assets, console REST workflow, auth/origin boundaries, private-file isolation and handoff safety verified.");
 } finally {
